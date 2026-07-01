@@ -1,0 +1,33 @@
+<?php
+
+return [
+    'quick_links' => 'Quick Links',
+    'home' => 'Home',
+    'bundles' => 'Bundles',
+    'solutions' => 'Our Solutions',
+    'about' => 'About Us',
+    'login' => 'Login to your account',
+    'privacy' => 'Privacy Policy',
+    'terms' => 'Terms of Use',
+    'register' => 'Register and get contacted',
+    'contact_whatsapp' => 'Contact via Whatsapp',
+    'copyright' => 'All rights reserved',
+    'support_chain_management_system' => 'Supply chain management system',
+    'marketplace' => 'Marketplace',
+    'contact' => 'Contact us',
+    'enter' => 'Login',
+    'your_account' => 'Your account',
+    'name' => 'Name',
+    'fname' => 'Name',
+    'lname' => 'Surname',
+    'phone' => 'Phone',
+    'email' => 'Email',
+    'glade_to_serve_you' => 'We are pleased to contact you to serve you better',
+    'fill_information' => 'Fill out the form and one of our experts will contact you within 24 hours',
+    'details' => 'Request Details',
+    'send' => 'Send',
+    'reason' => 'Reason',
+    'country' => 'Country',
+    'password' => 'Password',
+
+];

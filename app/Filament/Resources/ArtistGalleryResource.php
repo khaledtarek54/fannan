@@ -1,0 +1,84 @@
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\ArtistGalleryResource\Pages;
+use App\Models\ArtistGallery;
+use App\Models\User;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Table;
+
+class ArtistGalleryResource extends Resource
+{
+    protected static ?string $model = ArtistGallery::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-photo';
+
+    protected static ?int $navigationSort = 4;
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('app.users');
+    }
+
+    public static function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                //
+            ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Artist')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('type')
+                    ->label('Type'),
+                ImageColumn::make('video_url')
+                    ->label('File')
+                    ->checkFileExistence(false)
+                    ->url(fn($record) => url($record->video))
+                    ->openUrlInNewTab()
+                    ->square(),
+
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('user_id')
+                    ->label('Artist')
+                    ->searchable()
+                    ->options(User::query()->artist()->get()->pluck('name', 'id')->toarray())
+            ])
+            ->actions([
+//                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListArtistGalleries::route('/'),
+            'create' => Pages\CreateArtistGallery::route('/create'),
+//            'edit' => Pages\EditArtistGallery::route('/{record}/edit'),
+        ];
+    }
+}

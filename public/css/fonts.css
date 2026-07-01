@@ -1,0 +1,41 @@
+/* Define a font-face rule for Co Headline font */
+@font-face {
+    font-family: 'Co Headline';
+    src: url('/fonts/Co Headline.otf') format('otf'), /* Modern Browsers */
+    url('/fonts/Co Headline.otf') format('otf'); /* Older Browsers */
+    font-weight: normal;
+    font-style: normal;
+}
+
+/* Define a font-face rule for Co Headline Light */
+@font-face {
+    font-family: 'Co Headline';
+    src: url('/fonts/Co Headline Light.otf') format('otf'), /* Modern Browsers */
+    url('/fonts/Co Headline Light.otf') format('otf'); /* Older Browsers */
+    font-weight: 300; /* Light */
+    font-style: normal;
+}
+
+/* Define a font-face rule for Co Headline Light */
+@font-face {
+    font-family: 'Co Headline';
+    src: url('/fonts/Co Headline Bold.otf') format('otf'), /* Modern Browsers */
+    url('/fonts/Co Headline Bold.otf') format('otf'); /* Older Browsers */
+    font-weight: 700; /* Bold  */
+    font-style: normal;
+}
+
+/* Apply the Co Headline font to specific elements */
+h1, h2, h3, .headline {
+    font-family: 'Co Headline', sans-serif;
+}
+
+/* Apply the Co Headline Light font to elements that need it */
+.light-text {
+    font-family: 'Co Headline Light', sans-serif;
+}
+
+/* Apply the Co Headline Bold font to elements that need it */
+.bold-text {
+    font-family: 'Co Headline Bold', sans-serif;
+}

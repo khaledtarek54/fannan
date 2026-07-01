@@ -1,0 +1,86 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--    <title>Hyperpay</title>-->
+<!--</head>-->
+<!--<body>-->
+<!--<form class="paymentWidgets"></form>-->
+<!--<script>-->
+<!--    (function(){-->
+
+<!--        let checkoutId = "2D255F14AD7CCEF36A7BC2EF990A667A.uat01-vm-tx01";-->
+<!--        const parentElement = document.body || document.firstChild;-->
+
+<!--        const setupWidgetDataAndStart = data => {-->
+<!--            var wpwl =  data;-->
+<!--            wpwl.timestamp = new Date().toUTCString();-->
+<!--            window.wpwl = wpwl;-->
+
+<!--            console.log("Loading script");-->
+<!--            // load static files async-->
+<!--            (function(d,t,w,s,j){-->
+<!--                s = d.createElement(t), j = d.getElementsByTagName(t)[0];-->
+<!--                var e = w.checkout.config.environmentConfig;-->
+<!--                s.src = [e.url, "/v", w.apiVersion, "/static/", e.cacheVersion, "/js/static", w.minified ? ".min" : "", ".js"].join("");-->
+<!--                s.async = true;-->
+<!--// Temporary commenting out until we have a solution for the integrity attribute-->
+<!--//			if (w.integrity)-->
+<!--//			{-->
+<!--//				s.crossOrigin = 'anonymous';-->
+<!--//				s.integrity = w.integrity;-->
+<!--//			}-->
+<!--                j.parentNode.insertBefore(s, j);-->
+
+<!--                // Check if the source element is now in the DOM-->
+<!--                if (!d.contains(s))-->
+<!--                {-->
+<!--                    console.error("Failed to insert static script.");-->
+<!--                }-->
+<!--            }(document, "script", wpwl));-->
+<!--        };-->
+
+
+<!--        const widgetData = {-->
+<!--            "minified": true,-->
+<!--            "apiVersion": "1",-->
+<!--            "ndc": "2D255F14AD7CCEF36A7BC2EF990A667A.uat01-vm-tx01",-->
+<!--            "checkout": {"id":"2D255F14AD7CCEF36A7BC2EF990A667A.uat01-vm-tx01","amount":"0","currency":"SAR","paymentType":"DB","config":{"brandConfig":{"brands":[],"overrideShopBrands":false,"activateBrands":false},"registrations":[],"detectIp":true,"oppCnpSaqa":false,"redShieldDeviceIdInMsdkActive":false,"cnpCofDefaultSi":false,"cnpUpdateEntireCartAndPayments":false,"cnpAdditionalWidgetLogging":false,"overrideHolder":false,"threeDSecureV2Config":{"visaThreeDV2":false,"masterThreeDV2":false,"amexThreeDV2":false,"bcmcThreeDV2":false,"dinersThreeDV2":false,"jcbThreeDV2":false,"cartebancaireThreeDV2":false,"dankortThreeDV2":false,"cashlinkmaltaThreeDV2":true,"unionPayThreeDV2":false,"madaThreeDV2":false,"msdkFlow":"app","populateBrowserParams":true},"environmentConfig":{"url":"https://eu-test.oppwa.com","defaultPaymentMode":"INTEGRATOR_TEST","cacheVersion":"b65a09f7bc21a13f66ef45510c184417"},"workflowSpecificConfig":{"aliRiskConfig":{"active":false,"aliRiskParameters":{"clientAppName":"PAY.ON"}},"kountConfig":{"active":false,"merchantId":"","sessionId":"","baseUrl":"https://tst.kaptcha.com/"},"cyberSourceRiskManagementConfig":{"active":false,"merchantId":"","organizationId":"","collectDeviceId":false,"sessionId":"","srcUrl":""},"iovationConfig":{"active":false,"msdkActive":false},"affirmConfig":{"active":false,"publicKey":""},"forterConfig":{"active":false,"siteId":"","sessionId":"2D255F14AD7CCEF36A7BC2EF990A667A.uat01-vm-tx01"},"klarnaConfig":{"redirectIfWidgetCloses":true}},"klarnaMerchantIds":[],"paypalRestConfig":{},"msdkConfig":{"ui":"native"},"sendShippingBillingKlarnaClientSide":false,"merchant":{},"createRegistration":false,"amazonpayConfig":{},"clickToPayConfig":{"dpaBillingPreference":"NONE","dpaShippingPreference":"NONE","dpaAcceptedBillingCountries":[],"dpaAcceptedShippingCountries":[],"dynamicDataType":["CARD_APPLICATION_CRYPTOGRAM_SHORT_FORM"],"consumerNameRequested":false,"consumerEmailAddressRequested":false,"consumerPhoneNumberRequested":false},"sezzleConfig":{},"b4SepaAsyncWorkflow":false,"registrationPopulated":false,"standaloneThreeDSecure":false,"idealV2WidgetEnabled":false,"aciInstantPayCountry":"US"},"endpoint":"/payment","resourcePath":"/v1/checkouts/2D255F14AD7CCEF36A7BC2EF990A667A.uat01-vm-tx01/payment"}-->
+<!--        };-->
+
+<!--        setupWidgetDataAndStart(widgetData);-->
+
+
+<!--    }());-->
+<!--    -->
+<!--</script>-->
+<!--</body>-->
+<!--</html>-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hayperpay payment</title>
+    <style>
+        .wpwl-apple-pay-button {
+            -webkit-appearance: -apple-pay-button !important;
+        }
+    </style>
+</head>
+<body>
+<script src="https://eu-test.oppwa.com/v1/paymentWidgets.js?checkoutId=745D8763A1AA3F77FBF6836BEDEC0676.uat01-vm-tx03" integrity="{integrity}" crossorigin="anonymous"></script>
+<form class="paymentWidgets" data-brands="APPLEPAY VISA MASTER MASTERDEBIT AMEX MADA"></form>
+
+<script>
+    var wpwlOptions = {
+        applePay: {
+            displayName: "MyStore",
+            total: {label: "COMPANY, INC."},
+            supportedNetworks: ["applepay", "mada", "masterCard", "visa"]
+        }
+    };
+</script>
+</body>
+</html>

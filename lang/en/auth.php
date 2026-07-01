@@ -1,0 +1,30 @@
+<?php
+
+
+return [
+    'name_required' => 'Name is required',
+    'name_min' => 'Name Should be at least 3 characters',
+    'name_max' => 'Name Should less than 100 characters',
+    'phone_prefix_required' => 'Country code required',
+    'phone_required' => 'Phone is required',
+    'phone_unique' => 'Phone already used',
+    'verification_code' => 'Verification Code',
+    'verification_message' => 'Your verification Code is : ',
+    'wrong_code' => 'Wrong verification code.',
+    'phone_exists' => 'Wrong phone number',
+    'verification_code_required' => 'Verification code required',
+    'password_required' => 'password is required',
+    'password_min' => 'Password shou;d be at least 6 characters',
+    'password_wrong' => 'Wrong Password.',
+    'role_in' => 'Wrong Role.',
+    'categories_required' => 'Please select categories',
+    'not_verified' => 'Your account is not verified',
+    'email_required' => 'Email is required',
+    'email_unique' => 'Email already exists',
+    'dob_required' => 'Date of birth is required',
+    'gender_required' => 'Gender is required',
+    'city_required' => 'City is required',
+    'vat_number_required' => 'VAT Number is required',
+    'cr_number_required' => 'CR Number is required',
+    'block_account' => 'The account has been blocked ',
+];

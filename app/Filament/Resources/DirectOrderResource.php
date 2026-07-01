@@ -1,0 +1,246 @@
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Enums\OrderStatus;
+use App\Enums\OrderType;
+use App\Filament\Resources\DirectOrderResource\Pages;
+use App\Filament\Resources\DirectOrderResource\RelationManagers\CategoriesRelationManager;
+use App\Filament\Resources\DirectOrderResource\RelationManagers\DatesRelationManager;
+use App\Filament\Resources\DirectOrderResource\RelationManagers\OffersRelationManager;
+use App\Filament\Resources\DirectOrderResource\RelationManagers\SupportsRelationManager;
+use App\Models\Address;
+use App\Models\Category;
+use App\Models\City;
+use App\Models\Order;
+use App\Models\SubCategory;
+use App\Models\User;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
+use Filament\Resources\RelationManagers\RelationGroup;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+
+class DirectOrderResource extends Resource
+{
+    protected static ?string $model = Order::class;
+
+    protected static ?string $navigationIcon = 'heroicon-o-calendar';
+
+    protected static ?int $navigationSort = 1;
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('app.orders');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('app.direct_orders');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('app.direct_order');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('app.direct_orders');
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return Order::query()->where('type', OrderType::DIRECT->value)
+            ->whereHas('statuses', fn($query) => $query->where('name', OrderStatus::ARTIST_PENDING->value))
+            ->count();
+    }
+
+    public static function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Section::make()
+                    ->columns()
+                    ->schema([
+                        TextInput::make('number')
+                            ->label(trans('app.number'))
+                            ->visibleOn(['view']),
+                        Select::make('client_id')
+                            ->label(trans('app.client'))
+                            ->searchable()
+                            ->required()
+                            ->options(User::client()->get()->pluck('name', 'id')),
+                        Select::make('artist_id')
+                            ->label(trans('app.artist'))
+                            ->searchable()
+                            ->required()
+                            ->options(User::artist()->get()->pluck('name', 'id')),
+                        Select::make('category_id')
+                            ->label(trans('app.category'))
+                            ->searchable()
+                            ->required()
+                            ->options(Category::query()->get()->pluck('name', 'id'))
+                            ->reactive()
+                            ->afterStateUpdated(fn(callable $set) => $set('subcategory_id', null))
+                            ->visibleOn(['view']),
+                        Select::make('subcategory_id')
+                            ->label(trans('app.subcategory'))
+                            ->searchable()
+                            ->required()
+                            ->options(function (callable $get) {
+                                $categoryId = $get('category_id');
+                                if ($categoryId) {
+                                    return SubCategory::where('category_id', $categoryId)->get()->pluck('name', 'id');
+                                }
+                                return SubCategory::all()->pluck('name', 'id');
+                            })
+                            ->visibleOn(['view']),
+                        Select::make('address_id')
+                            ->label(trans('app.address'))
+                            ->searchable()
+                            ->required()
+                            ->options(function (callable $get) {
+                                $userId = $get('client_id');
+                                if ($userId) {
+                                    return Address::where('user_id', $userId)->get()->pluck('name', 'id');
+                                }
+                                return Address::all()->pluck('name', 'id');
+                            }),
+                        Textarea::make('description')
+                            ->label(trans('app.description'))
+                            ->required(),
+                        DateTimePicker::make('start_date')
+                            ->label(trans('app.start_date'))
+                            ->required()
+                            ->hiddenOn(['view']),
+                        DateTimePicker::make('end_date')
+                            ->label(trans('app.end_date'))
+                            ->required()
+                            ->hiddenOn(['view']),
+                        TextInput::make('cost')
+                            ->label(trans('app.cost'))
+                            ->required()
+                            ->suffix('SAR')
+                            ->visibleOn(['view']),
+                    ]),
+            ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                Tables\Columns\TextColumn::make('number')
+                    ->label(trans('app.number'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('client.name')
+                    ->label(trans('app.client'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('artist.name')
+                    ->label(trans('app.artist'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('address.city.name')
+                    ->label(trans('app.city'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('cost')
+                    ->label(trans('app.cost'))
+                    ->searchable()
+                    ->suffix(' SAR')
+                    ->sortable(),
+
+                BadgeColumn::make('status_value')
+                    ->label(trans('app.status'))
+                    ->searchable()
+                    ->sortable()
+                    ->colors([
+                        'danger' => OrderStatus::REJECTED->value,
+                        'warning' => OrderStatus::ARTIST_PENDING->value,
+                        'success' => OrderStatus::ACCEPTED->value,
+                        'secondary' => OrderStatus::COMPLETED->value,
+                        'info' => OrderStatus::IN_PAYMENT->value,
+                    ])
+                    ->formatStateUsing(function (string $state) {
+                        return match ($state) {
+                            OrderStatus::REJECTED->value => 'Rejected',
+                            OrderStatus::ARTIST_PENDING->value => 'Artist Pending',
+                            OrderStatus::ACCEPTED->value => 'Accepted',
+                            OrderStatus::COMPLETED->value => 'Completed',
+                            OrderStatus::IN_PAYMENT->value => 'In Payment',
+                            default => ucfirst($state),
+                        };
+                    })
+            ])
+            ->filters([
+                SelectFilter::make('city_id')
+                    ->label(trans('app.city'))
+                    ->searchable()
+                    ->options(City::all()->pluck('name', 'id')->toArray()),
+                SelectFilter::make('client_id')
+                    ->label(trans('app.client'))
+                    ->searchable()
+                    ->options(User::client()->get()->pluck('name', 'id')),
+                SelectFilter::make('artist_id')
+                    ->label(trans('app.artist'))
+                    ->searchable()
+                    ->options(User::artist()->get()->pluck('name', 'id')),
+            ])
+            ->actions([
+
+                Tables\Actions\ViewAction::make(),
+//                Tables\Actions\Action::make('complete_payment')
+//                    ->label(trans('app.payment_complete'))
+//                    ->requiresConfirmation()
+//                    ->action(function (Order $order) {
+//                        $order->update(['is_paid' => 1]);
+//                    })
+//                    ->visible(fn(Order $order) => !$order->is_paid),
+//                Tables\Actions\EditAction::make(),
+            ])
+            ->bulkActions([
+//                Tables\Actions\BulkActionGroup::make([
+//                    Tables\Actions\DeleteBulkAction::make(),
+//                ]),
+            ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationGroup::make('Relations', [
+                OffersRelationManager::class,
+                CategoriesRelationManager::class,
+                DatesRelationManager::class,
+                SupportsRelationManager::class
+            ]),
+        ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return Order::query()->where('type', OrderType::DIRECT->value)
+            ->orderByDesc('id');
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListDirectOrders::route('/'),
+            'create' => Pages\CreateDirectOrder::route('/create'),
+            'view' => Pages\ViewDirectOrder::route('/{record}'),
+            'edit' => Pages\EditDirectOrder::route('/{record}/edit'),
+        ];
+    }
+}
