@@ -14,7 +14,6 @@ This `docs/` folder documents the system for maintenance and future enhancement.
 | [admin-panel.md](admin-panel.md) | Filament panel config, resources, access control |
 | [integrations.md](integrations.md) | HyperPay & EasyKash payments, Firebase/FCM, Socialite, localization, Telescope |
 | [SECURITY_ISSUES.md](SECURITY_ISSUES.md) | Verified security findings, severity, and remediation status |
-| [COST_ESTIMATE.md](COST_ESTIMATE.md) | Effort & cost estimate for the remediation work |
 
 ## Tech stack
 
