@@ -22,7 +22,6 @@ use App\Http\Controllers\API\SupportController;
 use App\Http\Controllers\API\TransactionController;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\PaymentController;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Models\EasykashPayment;
@@ -224,9 +223,8 @@ Route::controller(ApiEasyKashController::class)
         Route::match(['get', 'post'], 'callback', 'callback');
     });
 
-Route::get('/command/{command}', function ($command) {
-    Artisan::call($command);
-});
+// [SECURITY] Removed public GET /command/{command} route that ran arbitrary
+// Artisan commands with zero authentication (RCE). See docs/SECURITY_ISSUES.md (C1).
 
 
 

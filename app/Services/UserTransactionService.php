@@ -54,32 +54,7 @@ class UserTransactionService
         return $payment;
     }
 
-    /**
-     * Update DB from EasyKash GET redirect (simpler update with query params)
-     */
-    public function updateFromRedirect(string $customerReference, string $status, ?string $easykashRef = null): ?UserTransaction
-    {
-        $payment = UserTransaction::where('customer_reference', $customerReference)->first();
-
-        if (! $payment) {
-            return null;
-        }
-
-        $payment->status = $status;
-
-        if ($easykashRef) {
-            $payment->easykash_ref = $easykashRef;
-        }
-
-        if ($status === "PAID") {
-            $payment->is_paid = true;
-            if ($payment->order) {
-                $payment->order->update(['is_paid' => true]);
-            }
-        }
-
-        $payment->save();
-
-        return $payment;
-    }
+    // [SECURITY] updateFromRedirect() was removed: it mutated payment state from the
+    // unauthenticated, unsigned GET redirect (see docs/SECURITY_ISSUES.md C2).
+    // Payment state is now only changed by updateFromCallback() after HMAC verification.
 }

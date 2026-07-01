@@ -62,20 +62,18 @@ class EasyKashController extends Controller
 
         try {
             if ($request->isMethod('get')) {
-                $status = strtoupper((string) $request->query('status', ''));
+                // [SECURITY] The GET redirect is the shopper's browser returning from
+                // EasyKash and is NOT authenticated or signed. It must never mutate
+                // payment state — otherwise anyone can mark an order PAID via a crafted
+                // URL (see docs/SECURITY_ISSUES.md C2). Payment state is only changed by
+                // the signature-verified POST webhook below. Here we redirect based on the
+                // record's ACTUAL stored state, not the untrusted query string.
                 $customerReference = $request->query('customerReference', '');
-                $easykashRef = $request->query('easykashRef') ?? $request->query('providerRefNum');
+                $payment = $customerReference
+                    ? UserTransaction::where('customer_reference', $customerReference)->first()
+                    : null;
 
-                // Update the database record before redirecting
-                if ($customerReference) {
-                    $this->transactionService->updateFromRedirect(
-                        $customerReference,
-                        $status,
-                        $easykashRef
-                    );
-                }
-
-                return $status === 'PAID'
+                return ($payment && $payment->is_paid)
                     ? redirect('/payment-success.html')
                     : redirect('/payment-failed.html');
             }
