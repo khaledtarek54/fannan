@@ -8,30 +8,42 @@
 
 | ID | Finding | Severity | Verified | Fixed |
 |----|---------|----------|----------|-------|
-| C1 | `/api/command/{command}` runs arbitrary Artisan commands, no auth | Critical | ✅ | ☐ |
-| C2 | EasyKash **GET** callback marks orders PAID with no signature | Critical | ✅ | ☐ |
+| C1 | `/api/command/{command}` runs arbitrary Artisan commands, no auth | Critical | ✅ | ☑ |
+| C2 | EasyKash **GET** callback marks orders PAID with no signature | Critical | ✅ | ☑ |
 | H1 | `/api/invoice/download` IDOR | High | ❌ not present | n/a |
-| H2 | `/api/order/accept` — artist can claim another artist's order | High | ✅ | ☐ |
-| H3 | `/api/order/reject` — any user can reject any order | High | ✅ | ☐ |
-| H4 | `/api/order/cancel` — any user can cancel any order | High | ✅ | ☐ |
-| H5 | `/api/checkout` unauthenticated + checkout has no order ownership | High | ✅ | ☐ |
-| M1 | `/api/payments/easykash/status` enumeration | Medium | ✅ | ☐ |
+| H2 | `/api/order/accept` — artist can claim another artist's order | High | ✅ | ☑ |
+| H3 | `/api/order/reject` — any user can reject any order | High | ✅ | ☑ |
+| H4 | `/api/order/cancel` — any user can cancel any order | High | ✅ | ☑ |
+| H5 | `/api/checkout` unauthenticated + checkout has no order ownership | High | ✅ | ☑ |
+| M1 | `/api/payments/easykash/status` enumeration | Medium | ✅ | ☑ |
 | M2 | `/api/order/status` IDOR | Medium | ❌ not present | n/a |
-| M3 | `/api/order/offer` — counter-offer on another client's order | Medium | ✅ | ☐ |
-| M4 | `/api/address/delete` IDOR | Medium | ✅ | ☐ |
-| M5 | `/api/offers/accept` + `/reject` IDOR | Medium | ✅ | ☐ |
-| M6 | `/api/easykash/pay` unauthenticated | Medium | ✅ | ☐ |
-| M7 | `POST /delete` (web) — delete any account by phone | Medium | ✅ | ☐ |
-| M8 | `resourcePath` SSRF + bearer-token leak (HyperPay status/webhook) | Medium | ✅ | ☐ |
-| M9 | `/admin/login` no rate limiting (brute force) | Medium | ✅ | ☐ |
-| M10 | Web forms (register/contact/delete) no rate limiting | Medium | ✅ | ☐ |
-| M11 | Single shared 60/min API rate limiter | Medium | ✅ | ☐ |
-| A1 | Filament admin panel open to any user (`canAccessPanel` = true) | High* | ✅ | ☐ |
-| L1 | `apiResource('invoices')` public + missing controller | Low | ✅ | ☐ |
-| L2 | Payment webhook has no idempotency/nonce | Low | ✅ | ☐ |
-| L3 | Gallery upload — no file type/size validation | Low | ✅ | ☐ |
+| M3 | `/api/order/offer` — counter-offer on another client's order | Medium | ✅ | ☑ |
+| M4 | `/api/address/delete` IDOR | Medium | ✅ | ☑ |
+| M5 | `/api/offers/accept` + `/reject` IDOR | Medium | ✅ | ☑ |
+| M6 | `/api/easykash/pay` unauthenticated | Medium | ✅ | ☑ |
+| M7 | `POST /delete` (web) — delete any account by phone | Medium | ✅ | ⚠️ partial (rate-limited; OTP recommended) |
+| M8 | `resourcePath` SSRF + bearer-token leak (HyperPay status/webhook) | Medium | ✅ | ☑ |
+| M9 | `/admin/login` no rate limiting (brute force) | Medium | ✅ | ☑ already by framework |
+| M10 | Web forms (register/contact/delete) no rate limiting | Medium | ✅ | ☑ |
+| M11 | Single shared 60/min API rate limiter | Medium | ✅ | ☑ |
+| A1 | Filament admin panel open to any user (`canAccessPanel` = true) | High* | ✅ | ☑ |
+| L1 | `apiResource('invoices')` public + missing controller | Low | ✅ | ☑ |
+| L2 | Payment webhook has no idempotency/nonce | Low | ✅ | ☑ |
+| L3 | Gallery upload — no file type/size validation | Low | ✅ | ☑ |
 
 \* A1 is not in the client brief but was found during review; it is effectively critical for production.
+
+### Remediation status (fixed at commit history `baseline → …`)
+
+All confirmed findings are fixed except **M7**, which is partially mitigated (rate-limited to
+6/min) — a full fix needs an OTP/ownership step on the public account-deletion form, which is a
+small feature change rather than a pure patch. **M9** required no change: Filament's login page
+already throttles to 5/min (`vendor/filament/filament/src/Pages/Auth/Login.php`). **H1/M2** don't
+exist in this codebase.
+
+> **Deploy note (A1):** the new `users.is_admin` column defaults to `false`, so after migrating in
+> production **no account can reach `/admin`** until you flag your real admin(s):
+> `UPDATE users SET is_admin = 1 WHERE email = 'you@example.com';`
 
 ---
 
@@ -111,6 +123,7 @@ There is no `/api/order/status` route (order routes are index/artist/store/accep
 ### M7 — `POST /delete` deletes any account by phone ✅
 **Location:** `routes/web.php:23` → `UserController::deleteUserAccount()` (`UserController.php:28-37`). `DeleteUserAccountRequest` only validates that the phone exists; there is no ownership/OTP check.
 **Fix:** Require the account owner to be authenticated (or verify via OTP) before deletion; rate-limit.
+**Applied:** rate-limited to 6/min (`throttle:6,1`). **Still recommended:** an OTP/ownership step on the public deletion form (small feature change).
 
 ### M8 — SSRF + bearer-token leak via `resourcePath` ✅
 **Location:** `HyperPayService::getPaymentStatus()` (`HyperPayService.php:62-71`):
@@ -123,7 +136,7 @@ $response = Http::withHeaders(['Authorization' => 'Bearer ' . $this->accessToken
 
 ### M9 — `/admin/login` has no rate limiting ✅
 **Location:** Filament login route; no throttle applied. The `api` limiter does not cover web/Filament routes.
-**Fix:** Add a login throttle (custom Filament Login page with `throttle`, or a `throttle:` middleware on the auth routes).
+**Status:** Already mitigated — Filament's Login page throttles to 5 attempts/min out of the box (`rateLimit(5)` in `vendor/filament/filament/src/Pages/Auth/Login.php`). No change required for this version.
 
 ### M10 — Public web forms have no rate limiting ✅
 **Location:** `routes/web.php` — `artist-store` (25), `contact-store` (21), `delete` (23). No throttle → spam/abuse.
