@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\EasyKashController;
 use App\Http\Controllers\API\AddressController;
-use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\API\ArtistController;
 use App\Http\Controllers\API\ArtistGalleryController;
 use App\Http\Controllers\API\AuthController;
@@ -24,19 +23,22 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
-use App\Models\EasykashPayment;
 
-Route::get('payments/easykash/status', function (Request $req) {
+// [SECURITY] Requires auth and only returns the caller's own transactions (M1).
+// Previously public and referenced an undefined model, enabling enumeration of
+// all customer references / payment data.
+Route::middleware('auth:api')->get('payments/easykash/status', function (Request $req) {
     $ref = $req->query('customerReference');
     if (! $ref) return response()->json(['error' => 'Missing customerReference'], 400);
 
-    $p = EasykashPayment::where('customer_reference', $ref)->first();
+    $p = \App\Models\UserTransaction::where('customer_reference', $ref)
+        ->whereHas('order', fn ($q) => $q->where('client_id', auth()->id()))
+        ->first();
     if (! $p) return response()->json(['status' => 'NOT_FOUND'], 404);
 
     return response()->json([
         'status' => $p->status,
         'easykash_ref' => $p->easykash_ref,
-        'payload' => $p->payload,
     ]);
 });
 
@@ -58,15 +60,21 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 
 Route::post('/address/reverse-geocode', [AddressController::class, 'reverseGeocode']);
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/login-social', [AuthController::class, 'socialLogin']);
-Route::post('social/login', [AuthController::class, 'socialLogin']);
-Route::post('/verification/check', [AuthController::class, 'checkCode']);
-Route::post('send/code', [AuthController::class, 'sendCodeAgain']);
-Route::post('/password/update', [AuthController::class, 'updatePassword']);
 
-Route::apiResource('invoices', InvoiceController::class);
+// [SECURITY] Auth endpoints use a dedicated stricter limiter to resist credential
+// brute-force and SMS/verification-code abuse. See docs/SECURITY_ISSUES.md M10/M11.
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login-social', [AuthController::class, 'socialLogin']);
+    Route::post('social/login', [AuthController::class, 'socialLogin']);
+    Route::post('/verification/check', [AuthController::class, 'checkCode']);
+    Route::post('send/code', [AuthController::class, 'sendCodeAgain']);
+    Route::post('/password/update', [AuthController::class, 'updatePassword']);
+});
+
+// [SECURITY] Removed public apiResource('invoices') — it exposed unauthenticated
+// CRUD routes wired to a non-existent InvoiceController (see docs/SECURITY_ISSUES.md L1).
 
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('settings', [SettingController::class, 'index']);
@@ -207,7 +215,7 @@ Route::middleware(['auth:api', 'DeleteAccount'])->group(function () {
 
     Route::controller(PaymentController::class)
         ->prefix('payment')
-        ->middleware('CompleteProfileMiddleware')
+        ->middleware(['CompleteProfileMiddleware', 'throttle:payment'])
         ->as('payment.')
         ->group(function () {
             Route::post('checkout', 'checkout');
@@ -219,7 +227,9 @@ Route::controller(ApiEasyKashController::class)
     ->prefix('easykash')
     ->as('easykash.')
     ->group(function () {
-        Route::post('pay', 'createPayment');
+        // [SECURITY] pay now requires auth + payment throttle (M6/M11). callback stays public
+        // for the external gateway; its POST branch is HMAC-verified (see EasyKashController).
+        Route::post('pay', 'createPayment')->middleware(['auth:api', 'throttle:payment']);
         Route::match(['get', 'post'], 'callback', 'callback');
     });
 

@@ -31,7 +31,9 @@ class EasyKashController extends Controller
 
         if (isset($validated['order_id'])) {
             $order = Order::find($validated['order_id']);
-            if ($order && $order->is_paid) {
+            // [SECURITY] Only the order's client may create a payment for it (M6).
+            abort_unless($order && (int) $order->client_id === (int) auth()->id(), 403);
+            if ($order->is_paid) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Order is already paid'

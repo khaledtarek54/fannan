@@ -109,7 +109,9 @@ class PaymentService
         if ($data['status']) {
             /** @var OrderPaymentTransaction $model */
             $model = $this->orderPaymentTransactionRepository->findByCheckoutId($data['checkoutId']);
-            if ($model) {
+            // [SECURITY] Idempotency — skip already-completed transactions to prevent
+            // replayed webhook processing (see docs/SECURITY_ISSUES.md L2).
+            if ($model && ! $model->is_complete) {
                 $model->is_complete = true;
                 $model->save();
                 $order = $model->order;

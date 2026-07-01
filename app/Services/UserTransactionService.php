@@ -35,6 +35,12 @@ class UserTransactionService
             return null;
         }
 
+        // [SECURITY] Idempotency — ignore duplicate/replayed callbacks for an
+        // already-paid transaction (see docs/SECURITY_ISSUES.md L2).
+        if ($payment->is_paid) {
+            return $payment;
+        }
+
         $payment->status           = $data->status;
         $payment->easykash_ref     = $data->easykashRef;
         $payment->payment_method   = $data->PaymentMethod;
