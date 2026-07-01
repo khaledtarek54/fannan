@@ -239,5 +239,6 @@ Route::controller(ApiEasyKashController::class)
 // });
 
 
-Route::post('/checkout', [PaymentController::class, 'checkout']);
-Route::get('webhook', [PaymentController::class, 'webhook']);
+// [SECURITY] Removed duplicate unauthenticated POST /checkout (see docs/SECURITY_ISSUES.md H5).
+// The only checkout entry point is the authenticated POST /payment/checkout above.
+Route::get('webhook', [PaymentController::class, 'webhook']); // HyperPay shopper return URL (resourcePath hardened — see M8)
