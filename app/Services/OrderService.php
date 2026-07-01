@@ -141,7 +141,10 @@ class OrderService
         // [SECURITY] Only the order's client may check out this order (H5).
         abort_unless((int) $model->client_id === (int) auth()->id(), 403);
         $cost = $model->total_cost;
-        (float)$tax = Setting::query()->where('type', SettingKey::TAX->value)->first()?->text_en ?? 0;
+        // [BUG] The settings table has no `text_en` column (only `value`), so tax was ALWAYS 0 in
+        // the quote while PaymentService charged 10% via `->value`. Read `->value` consistently.
+        // See docs/CODE_REVIEW_FINDINGS.md B4. (NOTE: quote-vs-charge VAT policy still needs sign-off.)
+        $tax = (float) (Setting::query()->where('type', SettingKey::TAX->value)->first()?->value ?? 0);
 
         $taxAmount = ($cost * $tax) / 100;
 
@@ -163,8 +166,9 @@ class OrderService
         }
 
         $totalCost = $cost + $taxAmount - $discount;
-        $vat = Setting::query()->where('type', SettingKey::VAT)->first();
-        $vatAmount = ($totalCost * $vat?->value ?? 0) / 100;
+        $vat = Setting::query()->where('type', SettingKey::VAT->value)->first();
+        // [BUG] Operator precedence: `*` binds before `??`, so the `?? 0` fallback was dead code.
+        $vatAmount = ($totalCost * (float) ($vat?->value ?? 0)) / 100;
         $totalCost += $vatAmount;
         $model->setStatus(OrderStatus::IN_PAYMENT->value);
         return [

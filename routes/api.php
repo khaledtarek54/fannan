@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\EasyKashController;
 use App\Http\Controllers\API\AddressController;
 use App\Http\Controllers\API\ArtistController;
 use App\Http\Controllers\API\ArtistGalleryController;
@@ -239,14 +238,6 @@ Route::controller(ApiEasyKashController::class)
 
 
 
-// // routes/api.php
-// Route::get('/debug', function () {
-//     return response()->json([
-//         'marker' => 'LOCAL_BACKEND_v1',
-//         'app_url' => env('APP_URL'),
-//         'timestamp' => now()->toDateTimeString(),
-//     ]);
-// });
 
 
 // [SECURITY] Removed duplicate unauthenticated POST /checkout (see docs/SECURITY_ISSUES.md H5).

@@ -69,7 +69,7 @@ class AuthController extends BaseController
 
     public function updatePassword(CheckPhoneNumberRequest $checkPhoneNumberRequest, UpdatePasswordRequest $updatePasswordRequest): JsonResponse
     {
-        $user = $this->userRepository->updatePassword($checkPhoneNumberRequest->phone, $updatePasswordRequest->password);
+        $user = $this->userRepository->updatePassword($checkPhoneNumberRequest->phone, $updatePasswordRequest->password, $updatePasswordRequest->verification_code);
         return $this->sendResponse($user, trans("app.done"));
     }
 

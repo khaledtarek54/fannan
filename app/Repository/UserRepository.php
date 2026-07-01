@@ -123,9 +123,12 @@ class UserRepository
         return $data;
     }
 
-    public function updatePassword($phone, $password)
+    public function updatePassword($phone, $password, $code = null)
     {
         $user = $this->getUserByPhone($phone);
+        // [SECURITY] Verify the SMS code before resetting — previously ANY phone number could
+        // reset a password (and got a valid token back). See docs/CODE_REVIEW_FINDINGS.md B3.
+        abort_unless($user && (string) $user->verification_code === (string) $code, 403, trans('auth.wrong_code'));
         $user->password = $password;
         $user->save();
         $data = new \stdClass();

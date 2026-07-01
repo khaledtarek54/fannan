@@ -161,9 +161,12 @@ class User extends Authenticatable implements FilamentUser
 
     public function getTotalWithdrawAttribute()
     {
+        // [BUG] Was filtering on 'is-completed' (hyphen) — a key no Transaction has — so this
+        // ALWAYS returned 0 and the withdrawal balance check (TransactionService) was bypassable.
+        // Count every withdrawal request (pending + completed) as committed against the balance,
+        // which also stops stacking multiple pending requests. See docs/CODE_REVIEW_FINDINGS.md B1.
         return $this->transactions
             ->where('type', TransactionType::WITHDRAW->value)
-            ->where('is-completed', true)
             ->sum('amount');
     }
 
