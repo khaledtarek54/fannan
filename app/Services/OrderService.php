@@ -3,9 +3,13 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Enums\OrderType;
 use App\Enums\SettingKey;
+use App\Enums\TransactionType;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\Transaction;
+use App\Models\User;
 use App\Notifications\AcceptOrderNotification;
 use App\Notifications\CancelOrderNotification;
 use App\Notifications\CompleteOrderNotification;
@@ -193,16 +197,61 @@ class OrderService
     {
         $orders = $this->orderRepository->getCompletedOrders();
         foreach ($orders as $order) {
-            if ($order->is_complete) {
-                $order->setStatus(OrderStatus::COMPLETED->value);
-                $client = $order->client;
-                try {
-                    $client->notify(new CompleteOrderNotification($order));
-                } catch (\Exception $exception) {
-                    Log::info('error while notify user' . $exception->getMessage());
-                }
+            if (! $order->is_complete) {
+                continue;
+            }
+            // [BL1-BL3/BL6] Escrow model: pay the artist(s) their net earnings on completion, then
+            // mark COMPLETED. Payout is driven by completion — NOT by the client leaving a rating.
+            $this->settleOrder($order);
+            $order->setStatus(OrderStatus::COMPLETED->value);
+            $client = $order->client;
+            try {
+                $client->notify(new CompleteOrderNotification($order));
+            } catch (\Exception $exception) {
+                Log::info('error while notify user' . $exception->getMessage());
             }
         }
         return true;
+    }
+
+    /**
+     * Credit each artist their net earnings (service cost minus platform fee) when the order
+     * completes. Handles direct (single artist) and bidding (each accepted bid). Idempotent —
+     * an order is never paid out twice. See docs/BUSINESS_LOGIC_ISSUES.md BL1-BL3.
+     */
+    private function settleOrder(Order $order): void
+    {
+        $alreadySettled = Transaction::query()
+            ->where('type', TransactionType::INCOME->value)
+            ->where('model_type', Order::class)
+            ->where('model_id', $order->id)
+            ->exists();
+        if ($alreadySettled) {
+            return;
+        }
+
+        if ($order->type == OrderType::BIDDING->value) {
+            foreach ($order->acceptedBiddingOrderArtists as $bid) {
+                $this->creditArtist($order, $bid->artist, (float) $bid->cost);
+            }
+        } else {
+            $this->creditArtist($order, $order->artist, (float) $order->cost_value);
+        }
+    }
+
+    private function creditArtist(Order $order, ?User $artist, float $cost): void
+    {
+        if (! $artist) {
+            return;
+        }
+        $fee = (float) ($artist->platform_fees ?? 0);
+
+        Transaction::create([
+            'user_id' => $artist->id,
+            'type' => TransactionType::INCOME->value,
+            'amount' => $cost - ($cost * $fee / 100),
+            'model_type' => Order::class,
+            'model_id' => $order->id,
+        ]);
     }
 }

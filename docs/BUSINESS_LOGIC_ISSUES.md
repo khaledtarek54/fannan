@@ -58,9 +58,24 @@ user who quotes but never pays has burned their one coupon use with no sale.
 
 ---
 
-## The decision that shapes the fix
+## Resolution — implemented "pay on completion" (escrow) model
 
-The right fix depends on **when artists should be paid** — a business/escrow-policy choice. Once decided,
-BL1–BL4 are fixed together by moving income creation to that point (net of platform fee **and** coupon),
-gated on `is_paid`, and BL5/BL6 by making completion cover both order types. Rating then becomes purely a
-review. (Status of fixes tracked here once the model is confirmed.)
+**Decision (confirmed):** artists are credited when an order is **completed** (paid + delivered).
+
+- **BL1 ✅ Fixed** — payout moved from rating to completion. `OrderService::settleOrder()` credits the
+  artist(s) when `notifyCompletedOrders()` marks an order COMPLETED (nightly `app:check-order-complete-command`).
+- **BL2 ✅ Fixed** — settlement runs only on **paid** orders (`getCompletedOrders` filters `is_paid=true`);
+  rating no longer creates any income.
+- **BL5 / BL6 ✅ Fixed** — completion now covers **both** direct and bidding orders; each accepted bidding
+  artist is settled their own bid amount. Idempotent (an order is never paid out twice).
+- **BL3 (policy set)** — the artist earns `service cost − platform fee`; the **platform absorbs coupon
+  discounts** (the client's discount does not reduce the artist's earnings). If coupons should instead come
+  out of artist earnings, adjust `OrderService::creditArtist()`.
+- **BL4 (de-risked)** — completion no longer depends on the `ACCEPTED` status, so the webhook's status
+  naming no longer blocks payout. A dedicated durable "paid" status is a cosmetic nicety, not required.
+- **BL7 (open)** — the coupon is still consumed at the quote step; moving consumption to payment
+  confirmation is a follow-up.
+- **BL8 (open)** — `NEW` status remains cosmetic.
+
+Guarded by `tests/Feature/OrderSettlementTest.php` (credit once, unpaid not settled) and
+`tests/Feature/RatingReviewTest.php` (rating is review-only).

@@ -141,13 +141,16 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
      */
     public function getCompletedOrders(): mixed
     {
+        // [BL5/BL6] Complete BOTH direct and bidding orders (was DIRECT-only, so bidding orders
+        // could never complete). Any paid order not already completed is eligible; the date check
+        // (is_complete) happens in the caller.
         return $this->model
-            ->where('type', OrderType::DIRECT->value)
             ->where('is_paid', true)
-            ->whereHas('statuses', function ($query) {
-                $query->where('name', OrderStatus::ACCEPTED->value);
+            ->whereDoesntHave('statuses', function ($query) {
+                $query->where('name', OrderStatus::COMPLETED->value);
             })
-            ->with(['client', 'artist', 'dates', 'statuses'])->get();
+            ->with(['client', 'artist', 'dates', 'statuses', 'acceptedBiddingOrderArtists.artist'])
+            ->get();
     }
 
     public function artistOrders()

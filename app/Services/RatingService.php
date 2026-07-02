@@ -70,18 +70,8 @@ class RatingService
         $payload['artist_id'] = $artist->id;
         $this->rateRepository->create($payload);
 
-        // [BUG] Was reading the VAT setting as the platform-fee %. Use the artist's platform_fees
-        // accessor, which already falls back to the PLATFORM_FEES setting (B2).
-        $platformFees = (float) ($artist->platform_fees ?? 0);
-
-        $cost -= ($cost * $platformFees) / 100;
-
-        $transactionPayload['user_id'] = $artist->id;
-        $transactionPayload['type'] = TransactionType::INCOME->value;
-        $transactionPayload['amount'] = $cost;
-        $transactionPayload['model_type'] = ModelName::ORDER->name;
-        $transactionPayload['model_id'] = $order->id;
-        $this->transactionRepository->create($transactionPayload);
+        // [BL1] Rating is a review ONLY. The artist is paid on order completion
+        // (OrderService::settleOrder), not here — see docs/BUSINESS_LOGIC_ISSUES.md.
         return true;
     }
 }
