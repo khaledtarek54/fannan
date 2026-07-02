@@ -40,6 +40,20 @@ as `VARCHAR`.
 `OrderStatus::NEW` is never actually set on any order (new orders are `ARTIST_PENDING`); `NEW` is only a
 display label. Cosmetic — clean up the enum/labels or leave as-is?
 
+### Q6 — Dependency security: the remaining CVEs need a Laravel 10 → 12 upgrade
+A dependency audit + a **safe, within-major** update was done (kept Laravel 10 + PHP 8.4, tests still
+green): advisories dropped from **39 (22 packages) → 4 (2 packages)** — Filament (→3.3.54), Guzzle, protobuf,
+psr7, etc. were all patched.
+- The **4 remaining** advisories can only be fixed by a **major upgrade**: `laravel/framework` (Laravel 10 is
+  **end-of-life for security** — the fixes exist only in Laravel 12) and `firebase/php-jwt` (needs v7, which
+  comes via Passport 12 → Laravel 11+).
+- **Question / recommendation:** schedule a **Laravel 10 → 11 → 12 upgrade** — a scoped migration project
+  (breaking changes, Passport/Filament compatibility, deprecation fixes). Until then the app runs on an EOL
+  framework. This is the single biggest remaining hardening item.
+- **Config notes (committed):** `config.platform.php` is pinned to **`8.4.0`** so composer resolves *only* for
+  the Hostinger PHP; `config.audit.block-insecure = false` lets the app still `install`/`update` despite the
+  EOL advisories (remove it once on Laravel 12). One dependency is flagged **abandoned** — swap when convenient.
+
 ## Needs coordination (not a code decision)
 
 ### C1 — Mobile app must send the verification code on password reset (from B3)
