@@ -11,10 +11,10 @@ code **and** the imported production database. Status: ☑ fixed · ⚠️ parti
 | B1 | Withdrawal balance always allows (wrong key `'is-completed'`) → over-withdraw | Critical | `User.php:166` | ☑ |
 | B2 | Rating endpoint: no ownership, no dedup, credits artist wallet each call, offer branch skips completion, fee fallback uses VAT | Critical | `RatingService.php:31-66` | ☑ |
 | B3 | Password reset never checks the verification code → account takeover by phone | High | `UserRepository.php:126`, `AuthController.php:70` | ☑ |
-| B4 | Checkout quote reads non-existent `settings.text_en` → quoted tax always 0; quote ≠ charge | High | `OrderService.php:144` | ⚠️ |
+| B4 | Checkout quote reads non-existent `settings.text_en` → quoted tax always 0; quote ≠ charge | High | `OrderService.php:144` | ☑ |
 | B5 | VAT operator-precedence bug (`* … ?? 0`) — the default guard is illusory | Medium | `OrderService.php:167` | ☑ |
 | B6 | Notification `markAsRead`/unread-count use ungrouped OR → wrong rows/counts | Medium | `NotificationRepository.php:27-50` | ☑ |
-| B7 | `ChatController::chats()` is an empty stub wired to a live route | Medium | `ChatController.php:19` | ☐ documented |
+| B7 | `ChatController::chats()` is an empty stub wired to a live route | Medium | `ChatController.php:19` | ☑ |
 | B8 | Debug routes exposed: `/test-mail` (500/leak) and `/firebase-test` (dumps all Firebase UIDs) | High | `routes/web.php` | ☑ |
 | B9 | Money/keys stored as VARCHAR: `order_payment_transactions.amount`, `user_transactions.user_id`, `users.email_verified_at` | Medium | migrations | ☐ documented |
 | B10 | `SettingRepository::getAll()` typo `firts()` (dead code, latent fatal) | Low | `SettingRepository.php:14` | ☑ |
@@ -47,10 +47,11 @@ invalidate it. *Note: the mobile app must send the code it already collected at 
 The `settings` table has columns `id, type, value` (no `text_en`). `OrderService::checkout()` reads
 `?->text_en`, so the **quoted tax is always 0**, while `PaymentService::checkout()` reads `?->value`
 (tax 10%). The two paths also differ on VAT (quote adds 14% VAT; the charge adds none). **Fixed:** the
-quote now reads `->value` and the VAT precedence bug is corrected. **Still needs a business/legal
-decision (flagged):** should the *charge* include VAT (KSA VAT is normally mandatory)? Unifying quote and
-charge changes what customers pay, so it is left for confirmation — one shared pricing method should be
-used by both once the rule is confirmed.
+quote now reads `->value` and the VAT precedence bug is corrected. **Unified (fixed):** both paths now
+call one `App\Services\OrderPricingService`, so the quote and the charge are identical by construction.
+VAT **is** included in the charge (matching the quote and KSA VAT rules); if VAT should not be charged,
+it's a one-line change in `OrderPricingService` that updates both paths at once. Covered by
+`tests/Feature/PricingTest.php`.
 
 ### B6 — Notification query precedence (Medium)
 `->where('user_id',me)->orWhere('to_user_id',me)->where('is_read',false)` parses as

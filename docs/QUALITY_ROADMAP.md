@@ -21,13 +21,13 @@ Effort key: **S** ≈ ≤1 day · **M** ≈ 2–4 days · **L** ≈ 1–2 weeks.
 
 ---
 
-## Phase 0 — Close the known loop  ·  **S**
+## Phase 0 — Close the known loop  ·  **S**  ·  🟡 MOSTLY DONE
 Finish the already-identified items so the "known bug" list is empty before we go hunting for unknowns.
-- Decide the **VAT policy** and unify quote (`OrderService`) and charge (`PaymentService`) into one shared pricing method.
-- Coordinate the **mobile app** to send `verification_code` on password reset.
-- Implement the **chat-list endpoint** (B7) to the shape the app expects.
-- Plan the **schema type fixes** (B9) for a supervised deploy (add `doctrine/dbal`, convert `amount`/`user_id`/`email_verified_at`).
-- One-time **data integrity pass**: fix the orphaned `order_categories` rows and add the missing FK constraints/indexes.
+- ✅ **VAT unified** — quote (`OrderService`) and charge (`PaymentService`) now share `OrderPricingService`; they can't diverge. VAT is charged (matches quote + KSA rules); one-line toggle if not wanted.
+- ✅ **Chat-list endpoint** (B7) implemented (latest message per partner). *Confirm the response shape matches the mobile app.*
+- ☐ Coordinate the **mobile app** to send `verification_code` on password reset (B3 — app-side change).
+- ☐ Plan the **schema type fixes** (B9) for a supervised deploy (add `doctrine/dbal`, convert `amount`/`user_id`/`email_verified_at`).
+- ☐ One-time **data integrity pass**: fix the orphaned `order_categories` rows and add the missing FK constraints/indexes.
 
 ## Phase 1 — Safety net: automated tests  ·  **L**  ·  *highest ROI*  ·  🟡 STARTED
 PHPUnit + Pest and Faker are already in `composer.json`; there's just no test suite. This is what makes

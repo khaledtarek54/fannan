@@ -16,9 +16,15 @@ class ChatController extends Controller
     {
     }
 
-    public function chats()
+    public function chats(): JsonResponse
     {
+        // [B7] Was an empty stub. Return the user's conversations (latest message per partner).
+        $conversations = $this->chatService->conversations();
 
+        return response()->json([
+            'chats' => ChatResource::collection($conversations),
+            'status' => true,
+        ]);
     }
 
 

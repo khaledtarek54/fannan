@@ -24,6 +24,7 @@ class OrderService
         protected OrderRepositoryInterface               $orderRepository,
         protected readonly CouponRepositoryInterface     $couponRepository,
         protected readonly CouponUserRepositoryInterface $couponUserRepository,
+        protected readonly OrderPricingService           $pricing,
     )
     {
     }
@@ -141,12 +142,6 @@ class OrderService
         // [SECURITY] Only the order's client may check out this order (H5).
         abort_unless((int) $model->client_id === (int) auth()->id(), 403);
         $cost = $model->total_cost;
-        // [BUG] The settings table has no `text_en` column (only `value`), so tax was ALWAYS 0 in
-        // the quote while PaymentService charged 10% via `->value`. Read `->value` consistently.
-        // See docs/CODE_REVIEW_FINDINGS.md B4. (NOTE: quote-vs-charge VAT policy still needs sign-off.)
-        $tax = (float) (Setting::query()->where('type', SettingKey::TAX->value)->first()?->value ?? 0);
-
-        $taxAmount = ($cost * $tax) / 100;
 
         $discount = 0;
         $appliedCoupon = false;
@@ -165,20 +160,11 @@ class OrderService
             }
         }
 
-        $totalCost = $cost + $taxAmount - $discount;
-        $vat = Setting::query()->where('type', SettingKey::VAT->value)->first();
-        // [BUG] Operator precedence: `*` binds before `??`, so the `?? 0` fallback was dead code.
-        $vatAmount = ($totalCost * (float) ($vat?->value ?? 0)) / 100;
-        $totalCost += $vatAmount;
+        // [B4] Shared pricing so this quote matches the charge in PaymentService exactly.
+        $breakdown = $this->pricing->breakdown((float) $cost, (float) $discount);
         $model->setStatus(OrderStatus::IN_PAYMENT->value);
-        return [
-            'cost' => $cost,
-            'tax' => $taxAmount,
-            'vat' => $vatAmount,
-            'discount' => $discount,
-            'total_cost' => $totalCost,
-            'applied_coupon' => $appliedCoupon,
-        ];
+
+        return $breakdown + ['applied_coupon' => $appliedCoupon];
     }
 
     /**
