@@ -56,9 +56,11 @@ psr7, etc. were all patched.
 
 ## Needs coordination (not a code decision)
 
-### C1 — Mobile app must send the verification code on password reset (from B3)
-`/api/password/update` now **requires** a `verification_code`. The app already collects it at the "enter
-code" step — it just needs to include it in the reset request. **Coordinate before deploying** this change.
+### C1 — Mobile app must send the verification code on password reset AND account deletion (from B3, M7)
+Both `/api/password/update` (B3) and the public account-deletion form (M7) now **require** a
+`verification_code`. The app already collects it at the "enter code" step — it just needs to include it in
+those requests (deletion also gained a `POST /delete-account/send-code` step to (re)issue the code).
+**Coordinate before deploying** these changes. Delivery of the code itself is still blocked on **C4**.
 
 ### C2 — Confirm the chat-list response shape (from B7)
 `GET /api/chat` now returns the latest message per conversation partner (it was an empty stub). Confirm the
@@ -75,6 +77,13 @@ verification, password reset, and (now) account deletion are **generated and che
 delivered** to users (the notification is commented out / missing). Configure an SMS gateway (or Firebase)
 and implement the OTP notification so these codes reach users. Until then those flows are *secure* but not
 end-user-usable, because the user can't receive the code. This is infrastructure, not a code bug.
+
+### C5 — Confirm the `order/status` response shape (from M2)
+`GET|POST /api/order/status` now returns the order's **lifecycle** status (ACCEPTED / COMPLETED / …) as
+`data.status`, with the payment status kept alongside as `data.payment_status`. (The interim production
+build had returned the *payment* status at the top level with no `data` envelope.) The endpoint now
+accepts **GET and POST**, as does `invoice/download`. Confirm the app reads `data.status` for the order
+state and `data.payment_status` for payment.
 
 ## Resolved (for the record)
 - **Artist payout timing** — decided: pay on **order completion** (escrow model). Implemented.

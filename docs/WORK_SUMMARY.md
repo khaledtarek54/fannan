@@ -7,6 +7,15 @@ What was done on the Fannan backend, **split by where each issue came from**:
 
 Status key: ✅ fixed · ⚠️ partial · ☐ documented/deferred · ❌ not present · ➖ already safe.
 
+> **Reconciliation note (2026-07-03):** on 2026-07-02 the repo was reset to adopt the raw production
+> code as the baseline (`ca51239`), after which only the client's PDF items (Part A) were re-applied
+> (`cf22048`). That silently dropped most of Part B, the escrow money-model, and the pricing
+> unification from the working tree. All of that self-found work has since been **re-ported from git
+> history onto the production baseline and verified end-to-end — the full feature suite is green (34
+> passing).** Deltas worth noting: `order/status` (M2) now returns the order's **lifecycle** status in
+> a `data` envelope (payment status kept alongside); `invoice/download` and `order/status` accept
+> **GET and POST**; the withdrawal balance now counts **every** withdrawal (pending + completed).
+
 ---
 
 ## Part A — Issues the client reported (the PDF)
@@ -103,9 +112,10 @@ The core marketplace payout was broken — artists were only paid when a client 
   database, and put it under Git with a clean history (small, reviewable commits per fix).
 - **Documentation:** a full `docs/` set — architecture, domain model, API reference, admin panel,
   integrations — plus the findings docs referenced above.
-- **Automated test suite:** built from scratch (there were none) — **35 passing feature tests** that
+- **Automated test suite:** built from scratch (there were none) — **34 passing feature tests** that
   guard every security and business fix (payout/escrow, ownership, pricing, password reset, coupons, chat,
-  account deletion, invoice, order status, …).
+  account deletion, invoice, order status, …). Runs against a local `testing` MySQL database with
+  `RefreshDatabase`; the `UserFactory` provides `client()` / `artist()` / `admin()` states.
 - **New secure endpoints:** built the two never-implemented items — a participant-only invoice **PDF**
   download (`barryvdh/laravel-dompdf`) and a participant-only order-status lookup.
 - **Pricing:** unified the quote and the charge into one `OrderPricingService` so they can't diverge.
