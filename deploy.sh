@@ -23,10 +23,14 @@ echo "==> Before: $(git rev-parse --short HEAD 2>/dev/null || echo 'not a git re
 echo "==> Pulling origin/main"
 git pull --ff-only origin main
 
-echo "==> Composer install (production)"
+echo "==> Composer install"
 COMPOSER_BIN="$(command -v composer || true)"
 if [ -n "$COMPOSER_BIN" ]; then
-  "$PHP" "$COMPOSER_BIN" install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+  # --ignore-platform-reqs: the 8.4 CLI is missing ext-sodium (the web SAPI has it), so a plain
+  #   install would abort. NOTE: we do NOT pass --no-dev — this app currently boots with dev deps
+  #   installed (nunomaduro/collision is an auto-discovered provider); a --no-dev install would need
+  #   collision moved to extra.laravel.dont-discover first, else every request 500s. Keep as-is.
+  COMPOSER_MEMORY_LIMIT=-1 "$PHP" "$COMPOSER_BIN" install --ignore-platform-reqs --optimize-autoloader --no-interaction --prefer-dist
 else
   echo "   (composer not on PATH — skipping; run it manually if dependencies changed)"
 fi
