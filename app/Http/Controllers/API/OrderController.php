@@ -92,4 +92,12 @@ class OrderController extends Controller
             'status' => true
         ]);
     }
+
+    public function orderStatus(OrderIdRequest $orderIdRequest): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->orderService->getOrderStatus($orderIdRequest->order_id),
+            'status' => true,
+        ]);
+    }
 }

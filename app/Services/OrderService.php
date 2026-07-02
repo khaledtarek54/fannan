@@ -61,6 +61,28 @@ class OrderService
     }
 
     /**
+     * [M2] Return an order's status — for a PARTICIPANT only. The reported `/api/order/status`
+     * endpoint never existed; built here with an ownership check so a caller can't read the
+     * status/artist/price of orders they aren't part of.
+     */
+    public function getOrderStatus(int $orderId): array
+    {
+        /** @var Order $order */
+        $order = $this->orderRepository->findById($orderId, relations: ['client', 'artist']);
+        $this->authorizeParticipant($order);
+
+        return [
+            'order_id' => $order->id,
+            'number' => $order->number,
+            'status' => $order->latestStatus()?->name,
+            'is_paid' => (bool) $order->is_paid,
+            'total_cost' => $order->total_cost,
+            'artist' => $order->artist?->name,
+            'client' => $order->client?->name,
+        ];
+    }
+
+    /**
      * @param array $payload
      * @return Model|null
      */

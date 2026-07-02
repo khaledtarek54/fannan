@@ -10,13 +10,13 @@
 |----|---------|----------|----------|-------|
 | C1 | `/api/command/{command}` runs arbitrary Artisan commands, no auth | Critical | ✅ | ☑ |
 | C2 | EasyKash **GET** callback marks orders PAID with no signature | Critical | ✅ | ☑ |
-| H1 | `/api/invoice/download` IDOR | High | ❌ not present | n/a |
+| H1 | `/api/invoice/download` IDOR | High | ⚠️ never implemented | ☑ built securely |
 | H2 | `/api/order/accept` — artist can claim another artist's order | High | ✅ | ☑ |
 | H3 | `/api/order/reject` — any user can reject any order | High | ✅ | ☑ |
 | H4 | `/api/order/cancel` — any user can cancel any order | High | ✅ | ☑ |
 | H5 | `/api/checkout` unauthenticated + checkout has no order ownership | High | ✅ | ☑ |
 | M1 | `/api/payments/easykash/status` enumeration | Medium | ✅ | ☑ |
-| M2 | `/api/order/status` IDOR | Medium | ❌ not present | n/a |
+| M2 | `/api/order/status` IDOR | Medium | ⚠️ never implemented | ☑ built securely |
 | M3 | `/api/order/offer` — counter-offer on another client's order | Medium | ✅ | ☑ |
 | M4 | `/api/address/delete` IDOR | Medium | ✅ | ☑ |
 | M5 | `/api/offers/accept` + `/reject` IDOR | Medium | ✅ | ☑ |
@@ -69,8 +69,8 @@ The POST/webhook branch verifies an HMAC-SHA512 signature (good), but the **GET 
 
 ## High
 
-### H1 — `/api/invoice/download` IDOR ❌ NOT PRESENT
-No `InvoiceController` exists in the codebase (`app/Http/Controllers/InvoiceController.php` is missing), and there is no `/invoice/download` route. The only invoice route is `apiResource('invoices', InvoiceController::class)` (`routes/api.php:70`) which references the missing class — see L1. **No action required for this specific endpoint**, but the described risk (exposing client/artist PII + IBAN via an invoice PDF) should be kept in mind if invoicing is implemented later — build it with an ownership check from day one.
+### H1 — `/api/invoice/download` IDOR ⚠️ WAS NEVER IMPLEMENTED → ☑ BUILT SECURELY
+This feature **did not exist at all** in the delivered codebase — there was no `InvoiceController` and no `/invoice/download` route (only a broken `apiResource('invoices', InvoiceController::class)` pointing at a missing class, since removed in L1). So there was no vulnerable code to patch. **At the client's request it was then built from scratch, securely:** `app/Http/Controllers/InvoiceController.php` + `GET /api/invoice/download` — restricted to the order's own **client or artist** (403 otherwise, no order_id enumeration) and deliberately **omitting IBAN/bank details** so it cannot leak the other party's private data. Guarded by `tests/Feature/InvoiceDownloadTest.php`.
 
 ### H2 — `/api/order/accept`: artist can accept another artist's order ✅
 **Location:** `app/Http/Controllers/API/OrderController.php:51-58` → `app/Services/OrderService.php:79-93`
@@ -101,8 +101,8 @@ Same class of bug as H3.
 **Location:** `routes/api.php:30-42` (public closure). Returns a transaction's status/ref/payload for any `customerReference`, unauthenticated. Combined with C2's small reference space, this both **discloses** payment data and **enables** the C2 attack.
 **Fix:** Require authentication and scope to the caller's own transactions, or remove the endpoint.
 
-### M2 — `/api/order/status` IDOR ❌ NOT PRESENT (risk verified absent)
-There is no `/api/order/status` route (order routes are index/artist/store/accept/offer/reject/cancel/checkout — `routes/api.php:129-142`). We also verified the *underlying* risk ("view an order you're not part of") is not present elsewhere: the order-read endpoints that DO exist — `GET /api/order` and `GET /api/order/artist` — are scoped by role in `BaseRepository::index` (`checkAuthClient`/`checkAuthArtist`): a **client** only sees rows where `client_id` = their id, an **artist** only where `artist_id` = theirs. So there is no "list/view arbitrary orders" leak. (Bidding orders are viewable by artists by design — a job board.) The ownership fixes (H2-H4/M3) cover the state-changing order actions.
+### M2 — `/api/order/status` IDOR ⚠️ WAS NEVER IMPLEMENTED → ☑ BUILT SECURELY
+This endpoint **did not exist at all** in the delivered codebase (order routes were index/artist/store/accept/offer/reject/cancel/checkout). The *existing* order-read endpoints were already safe — `GET /api/order` and `/api/order/artist` are scoped by role in `BaseRepository::index` (`checkAuthClient`/`checkAuthArtist`: a client only sees their `client_id` rows, an artist only their `artist_id`), so there was no "view arbitrary orders" leak. **At the client's request the status lookup was then built, securely:** `POST /api/order/status` (`OrderController::orderStatus` → `OrderService::getOrderStatus`) returns status/price/parties **only to a participant** of that order (403 otherwise). Guarded by `tests/Feature/OrderStatusTest.php`.
 
 ### M3 — `/api/order/offer`: counter-offer on another client's order ✅
 **Location:** `OrderController@offer` → `OrderService::counterOffer()` (`OrderService.php:99-111`). Role-checked as client, but no check the order belongs to the caller.

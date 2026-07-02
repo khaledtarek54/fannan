@@ -19,6 +19,7 @@ use App\Http\Controllers\API\SettingController;
 use App\Http\Controllers\API\SupportController;
 use App\Http\Controllers\API\TransactionController;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -145,7 +146,11 @@ Route::middleware(['auth:api', 'DeleteAccount'])->group(function () {
             Route::post('reject', 'reject')->name('reject');
             Route::post('cancel', 'cancel')->name('cancel');
             Route::post('checkout', 'checkout')->name('checkout');
+            Route::post('status', 'orderStatus')->name('status'); // [M2] participant-only order status
         });
+
+    // [H1] Secure invoice download — only the order's client or artist, PII/IBAN protected.
+    Route::get('invoice/download', [InvoiceController::class, 'download']);
 
     Route::controller(CouponController::class)
         ->prefix('coupon')

@@ -13,7 +13,8 @@ Status key: ✅ fixed · ⚠️ partial · ☐ documented/deferred · ❌ not pr
 
 The client's document listed 21 points. **All are resolved.** Verified against the actual source:
 
-> **Status: 18 fixed · 2 not present (verified absent, not just missing) · 1 already safe (framework) · 0 open.**
+> **Status: 20 fixed/built · 1 already safe (framework) · 0 open.**
+> Note: **H1 and M2 were never implemented at all** in the delivered codebase — the reported endpoints did not exist. At the client's request they were **built from scratch, securely** (ownership-checked), rather than left as not-present.
 
 ### Critical
 | # | Issue | Status |
@@ -24,7 +25,7 @@ The client's document listed 21 points. **All are resolved.** Verified against t
 ### High
 | # | Issue | Status |
 |---|-------|--------|
-| H1 | `/api/invoice/download` IDOR | ❌ endpoint/controller doesn't exist in this codebase |
+| H1 | `/api/invoice/download` IDOR | ⚠️ **never implemented** in the delivered code → ✅ **built securely** (participant-only, no IBAN) |
 | H2 | `/api/order/accept` — artist could claim another artist's order | ✅ ownership check |
 | H3 | `/api/order/reject` — any user could reject any order | ✅ ownership check |
 | H4 | `/api/order/cancel` — any user could cancel any order | ✅ ownership check |
@@ -34,7 +35,7 @@ The client's document listed 21 points. **All are resolved.** Verified against t
 | # | Issue | Status |
 |---|-------|--------|
 | M1 | `/api/payments/easykash/status` enumeration | ✅ auth + scoped to caller |
-| M2 | `/api/order/status` IDOR | ❌ no such route in this codebase |
+| M2 | `/api/order/status` IDOR | ⚠️ **never implemented** in the delivered code → ✅ **built securely** (participant-only) |
 | M3 | `/api/order/offer` — counter-offer on another client's order | ✅ ownership check |
 | M4 | `/api/address/delete` IDOR | ✅ ownership check |
 | M5 | `/api/offers/accept` + `/reject` IDOR | ✅ ownership check |
