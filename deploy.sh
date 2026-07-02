@@ -21,18 +21,21 @@ echo "==> Deploy start"
 echo "==> Before: $(git rev-parse --short HEAD 2>/dev/null || echo 'not a git repo yet')"
 
 echo "==> Pulling origin/main"
+LOCK_BEFORE="$(md5sum composer.lock 2>/dev/null | awk '{print $1}')"
 git pull --ff-only origin main
+LOCK_AFTER="$(md5sum composer.lock 2>/dev/null | awk '{print $1}')"
 
-echo "==> Composer install"
+# Only run composer when dependencies actually changed (keeps code-only deploys fast).
+# --ignore-platform-reqs: the 8.4 CLI is missing ext-sodium (the web SAPI has it), so a plain
+#   install would abort. We do NOT pass --no-dev — this app boots with dev deps installed
+#   (nunomaduro/collision is an auto-discovered provider); --no-dev would need collision moved to
+#   extra.laravel.dont-discover first, else every request 500s.
 COMPOSER_BIN="$(command -v composer || true)"
-if [ -n "$COMPOSER_BIN" ]; then
-  # --ignore-platform-reqs: the 8.4 CLI is missing ext-sodium (the web SAPI has it), so a plain
-  #   install would abort. NOTE: we do NOT pass --no-dev — this app currently boots with dev deps
-  #   installed (nunomaduro/collision is an auto-discovered provider); a --no-dev install would need
-  #   collision moved to extra.laravel.dont-discover first, else every request 500s. Keep as-is.
+if [ -n "$COMPOSER_BIN" ] && { [ "$LOCK_BEFORE" != "$LOCK_AFTER" ] || [ ! -f vendor/autoload.php ]; }; then
+  echo "==> composer.lock changed — installing dependencies"
   COMPOSER_MEMORY_LIMIT=-1 "$PHP" "$COMPOSER_BIN" install --ignore-platform-reqs --optimize-autoloader --no-interaction --prefer-dist
 else
-  echo "   (composer not on PATH — skipping; run it manually if dependencies changed)"
+  echo "==> Dependencies unchanged — skipping composer install"
 fi
 
 echo "==> Running migrations"
@@ -43,8 +46,7 @@ echo "==> Clearing caches (config/cache/view)"
 "$PHP" artisan cache:clear
 "$PHP" artisan view:clear
 
-echo "==> Ensuring storage symlink"
-"$PHP" artisan storage:link 2>/dev/null || true
+[ -L public/storage ] || "$PHP" artisan storage:link 2>/dev/null || true
 
 echo "==> After:  $(git rev-parse --short HEAD)"
 echo "==> Deploy done ✅"
