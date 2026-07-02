@@ -11,8 +11,9 @@ Status key: ✅ fixed · ⚠️ partial · ☐ documented/deferred · ❌ not pr
 
 ## Part A — Issues the client reported (the PDF)
 
-The client's document listed 21 points. Every real one is fixed; **2 did not exist** in the code, and
-**1 was already handled** by the framework — verified against the actual source.
+The client's document listed 21 points. **All are resolved.** Verified against the actual source:
+
+> **Status: 18 fixed · 2 not present (verified absent, not just missing) · 1 already safe (framework) · 0 open.**
 
 ### Critical
 | # | Issue | Status |
