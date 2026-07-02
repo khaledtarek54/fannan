@@ -23,7 +23,8 @@ class InvoiceDownloadTest extends TestCase
             ->get('/api/invoice/download?order_id=' . $order->id);
 
         $response->assertStatus(200);
-        $this->assertStringStartsWith('%PDF-', $response->getContent()); // a real PDF file
+        // download() streams the PDF (StreamedResponse), so read the streamed body, not getContent().
+        $this->assertStringStartsWith('%PDF-', $response->streamedContent()); // a real PDF file
     }
 
     public function test_a_non_participant_cannot_download_the_invoice(): void

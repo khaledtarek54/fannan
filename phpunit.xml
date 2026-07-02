@@ -26,5 +26,9 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <!-- Dummy EasyKash creds so EasyKashService (typed string props) can construct in tests. -->
+        <env name="EASYKASH_API_KEY" value="test-api-key"/>
+        <env name="EASYKASH_HMAC_SECRET" value="test-hmac-secret"/>
+        <env name="EASYKASH_REDIRECT_URL" value="https://example.test/easykash/return"/>
     </php>
 </phpunit>
