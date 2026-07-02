@@ -45,6 +45,17 @@ The app runs locally on **Herd** (PHP) + **DBngin** (MySQL):
 
 > ⚠️ Local-only credentials above. Do not use in production.
 
+### Running the tests
+
+A feature test suite guards the security/bug fixes (see `tests/Feature/`).
+
+1. Create the test database once: `CREATE DATABASE fanna_testing;` (DBngin MySQL).
+2. Ensure Passport keys exist locally: `php artisan passport:keys` (gitignored).
+3. Run: `php artisan test`.
+
+The suite uses `RefreshDatabase` against `fanna_testing` (configured in `phpunit.xml`) and creates a
+Passport personal-access client per run in `Tests\TestCase::setUp()`.
+
 ## Repository conventions
 
 - Business logic lives in **Services** (`app/Services/`) and **Repositories** (`app/Repositories/`), bound via interfaces in `AppServiceProvider`. Controllers stay thin.

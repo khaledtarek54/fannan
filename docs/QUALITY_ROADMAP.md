@@ -29,9 +29,11 @@ Finish the already-identified items so the "known bug" list is empty before we g
 - Plan the **schema type fixes** (B9) for a supervised deploy (add `doctrine/dbal`, convert `amount`/`user_id`/`email_verified_at`).
 - One-time **data integrity pass**: fix the orphaned `order_categories` rows and add the missing FK constraints/indexes.
 
-## Phase 1 — Safety net: automated tests  ·  **L**  ·  *highest ROI*
+## Phase 1 — Safety net: automated tests  ·  **L**  ·  *highest ROI*  ·  🟡 STARTED
 PHPUnit + Pest and Faker are already in `composer.json`; there's just no test suite. This is what makes
 the app *stay* fixed.
+- ✅ **Done:** harness set up (`fanna_testing` MySQL DB, `TestCase`/`CreatesApplication`, Passport client in `setUp`, factories for `User`/`Order`/`Transaction`) and **15 passing regression tests** covering the money + auth fixes (admin gate, EasyKash callback, order ownership, password reset, rating ownership, withdrawal balance). See `tests/Feature/`.
+- ☐ **Remaining:** broaden coverage — bidding flow, coupon/tax math (quote == charge), address/gallery/support IDOR happy+sad paths, notifications, and the rating credit/dedup path (needs an `OrderDate` factory + `is_complete`).
 - Set up the test harness: a dedicated test database (in-memory SQLite or a `fanna_testing` MySQL), `RefreshDatabase`, model factories for `User`, `Order`, `OrderOffer`, `BiddingOrderArtist`, `Address`, `Transaction`, `Setting`.
 - **Regression tests for every fix already made** (guards so they can never come back):
   - Auth: register/login/social, and password reset **rejects** without a valid code.
