@@ -13,9 +13,12 @@ This `docs/` folder documents the system for maintenance and future enhancement.
 | [api-reference.md](api-reference.md) | Full endpoint catalog, controller responsibilities, FormRequest validation |
 | [admin-panel.md](admin-panel.md) | Filament panel config, resources, access control |
 | [integrations.md](integrations.md) | HyperPay & EasyKash payments, Firebase/FCM, Socialite, localization, Telescope |
+| [WORK_SUMMARY.md](WORK_SUMMARY.md) | Everything done, split by client-reported vs. found-by-us |
 | [SECURITY_ISSUES.md](SECURITY_ISSUES.md) | Verified security findings, severity, and remediation status |
 | [CODE_REVIEW_FINDINGS.md](CODE_REVIEW_FINDINGS.md) | Second-round bug review (money, logic, prod-readiness) + verified non-issues |
+| [BUSINESS_LOGIC_ISSUES.md](BUSINESS_LOGIC_ISSUES.md) | Business-model / payout review and the escrow fix |
 | [QUALITY_ROADMAP.md](QUALITY_ROADMAP.md) | Phased plan to make the project as bug-free as possible |
+| [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) | Pending decisions & coordination items |
 
 ## Tech stack
 
