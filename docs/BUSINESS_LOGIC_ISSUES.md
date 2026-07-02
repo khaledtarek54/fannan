@@ -73,8 +73,8 @@ user who quotes but never pays has burned their one coupon use with no sale.
   out of artist earnings, adjust `OrderService::creditArtist()`.
 - **BL4 (de-risked)** — completion no longer depends on the `ACCEPTED` status, so the webhook's status
   naming no longer blocks payout. A dedicated durable "paid" status is a cosmetic nicety, not required.
-- **BL7 (open)** — the coupon is still consumed at the quote step; moving consumption to payment
-  confirmation is a follow-up.
+- **BL7 ✅ Fixed** — the coupon is now consumed only when the order **completes** (a real sale), not at
+  the quote step. `OrderService::consumeOrderCoupon()`; guarded by `tests/Feature/CouponConsumptionTest.php`.
 - **BL8 (open)** — `NEW` status remains cosmetic.
 
 Guarded by `tests/Feature/OrderSettlementTest.php` (credit once, unpaid not settled) and

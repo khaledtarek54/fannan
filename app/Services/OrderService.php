@@ -155,8 +155,8 @@ class OrderService
             if (!$usedCoupon) {
                 $discount += $this->orderRepository->calculateCouponAmount($coupon, (float)$cost);
 
-                $this->couponUserRepository->create(['user_id' => auth()->id(), 'coupon_id' => $coupon->id,]);
-
+                // [BL7] Do NOT consume the coupon at the quote step — it was being burned even when
+                // the client never paid. Consumption now happens on completion (consumeOrderCoupon).
                 $model->coupon_id = $coupon->id;
                 $model->coupon_amount = $discount;
                 $model->save();
@@ -203,6 +203,7 @@ class OrderService
             // [BL1-BL3/BL6] Escrow model: pay the artist(s) their net earnings on completion, then
             // mark COMPLETED. Payout is driven by completion — NOT by the client leaving a rating.
             $this->settleOrder($order);
+            $this->consumeOrderCoupon($order);
             $order->setStatus(OrderStatus::COMPLETED->value);
             $client = $order->client;
             try {
@@ -252,6 +253,24 @@ class OrderService
             'amount' => $cost - ($cost * $fee / 100),
             'model_type' => Order::class,
             'model_id' => $order->id,
+        ]);
+    }
+
+    /**
+     * [BL7] Consume the order's coupon only when the order completes (a real sale). Previously it
+     * was burned at the quote step even if the client never paid. Idempotent.
+     */
+    private function consumeOrderCoupon(Order $order): void
+    {
+        if (! $order->coupon_id) {
+            return;
+        }
+        if ($this->couponUserRepository->checkIfExists($order->client_id, $order->coupon_id)) {
+            return;
+        }
+        $this->couponUserRepository->create([
+            'user_id' => $order->client_id,
+            'coupon_id' => $order->coupon_id,
         ]);
     }
 }
