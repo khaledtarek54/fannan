@@ -20,6 +20,14 @@ class ChatService
     }
 
     /**
+     * [B7] The authenticated user's conversation list (latest message per partner).
+     */
+    public function conversations(): Collection
+    {
+        return $this->chatRepository->conversations();
+    }
+
+    /**
      * @param array $payload
      * @return bool
      */
