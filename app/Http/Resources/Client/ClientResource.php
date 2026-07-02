@@ -25,7 +25,7 @@ class ClientResource extends JsonResource
             'role' => $this->role,
             "dob" => Carbon::parse($this->dob)->format('d-M-Y'),
             "gender" => $this->gender,
-            "city" => $this->city->name,
+            "city" => $this->city,
             "vat_number" => $this->name,
             "cr_number" => $this->name,
             "completed_profile" => (bool)$this->completed_profile,

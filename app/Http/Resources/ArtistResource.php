@@ -26,7 +26,7 @@ class ArtistResource extends JsonResource
             'role' => $this->role,
             "dob" => Carbon::parse($this->dob)->format('Y-M-d H:i A'),
             "gender" => $this->gender,
-            "city" => $this->city->name,
+            "city" => $this->city,
             "vat_number" => $this->vat_number,
             "cr_number" => $this->cr_number,
             'from_range' => $this->random_range?->from ?? 0,
