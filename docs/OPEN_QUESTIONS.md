@@ -24,11 +24,10 @@ Quote and charge are now unified and **include VAT** (currently 14% in settings;
 - **Recommendation:** confirm with the client's accountant. If `cost` already includes VAT, remove the VAT
   term in `OrderPricingService` (one place, updates both quote and charge).
 
-### Q3 — Account deletion: add OTP? (from M7)
-The public "delete my account" form currently deletes by phone number and is only **rate-limited** (interim
-mitigation).
-- **Question:** implement a full OTP/verification step (reuses the existing SMS-code system) before
-  deletion? Recommended for real protection, but it's a small feature (view + flow) rather than a patch.
+### Q3 — Account-deletion OTP ✅ DONE (from M7)
+Implemented: the public deletion form now requires a verification code (with a `send-code` step and rate
+limiting) so an account can't be deleted by phone number alone. Guarded by
+`tests/Feature/AccountDeletionTest.php`. See the related delivery gap in **C4** below.
 
 ### Q4 — Fix the mistyped money/key columns? (from B9)
 `order_payment_transactions.amount`, `user_transactions.user_id`, and `users.email_verified_at` are stored
@@ -55,6 +54,13 @@ JSON shape matches what the mobile app expects for the conversation-list screen.
 The security fix adds a `users.is_admin` column defaulting to `false`. After migrating in production,
 **no one can reach `/admin`** until you flag the real admin account(s):
 `UPDATE users SET is_admin = 1 WHERE email = '...';`
+
+### C4 — Wire up SMS/OTP delivery (affects all verification flows)
+There is **no OTP notification class** in the codebase — the verification codes used by registration
+verification, password reset, and (now) account deletion are **generated and checked but never actually
+delivered** to users (the notification is commented out / missing). Configure an SMS gateway (or Firebase)
+and implement the OTP notification so these codes reach users. Until then those flows are *secure* but not
+end-user-usable, because the user can't receive the code. This is infrastructure, not a code bug.
 
 ## Resolved (for the record)
 - **Artist payout timing** — decided: pay on **order completion** (escrow model). Implemented.

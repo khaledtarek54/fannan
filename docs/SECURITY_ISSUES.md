@@ -21,7 +21,7 @@
 | M4 | `/api/address/delete` IDOR | Medium | ✅ | ☑ |
 | M5 | `/api/offers/accept` + `/reject` IDOR | Medium | ✅ | ☑ |
 | M6 | `/api/easykash/pay` unauthenticated | Medium | ✅ | ☑ |
-| M7 | `POST /delete` (web) — delete any account by phone | Medium | ✅ | ⚠️ partial (rate-limited; OTP recommended) |
+| M7 | `POST /delete` (web) — delete any account by phone | Medium | ✅ | ☑ |
 | M8 | `resourcePath` SSRF + bearer-token leak (HyperPay status/webhook) | Medium | ✅ | ☑ |
 | M9 | `/admin/login` no rate limiting (brute force) | Medium | ✅ | ☑ already by framework |
 | M10 | Web forms (register/contact/delete) no rate limiting | Medium | ✅ | ☑ |
@@ -122,8 +122,7 @@ There is no `/api/order/status` route (order routes are index/artist/store/accep
 
 ### M7 — `POST /delete` deletes any account by phone ✅
 **Location:** `routes/web.php:23` → `UserController::deleteUserAccount()` (`UserController.php:28-37`). `DeleteUserAccountRequest` only validates that the phone exists; there is no ownership/OTP check.
-**Fix:** Require the account owner to be authenticated (or verify via OTP) before deletion; rate-limit.
-**Applied:** rate-limited to 6/min (`throttle:6,1`). **Still recommended:** an OTP/ownership step on the public deletion form (small feature change).
+**Fix (applied):** the deletion form now **requires a verification code** matching the account's stored code (`UserService::deleteAccount`), a `POST /delete-account/send-code` step to (re)generate it, and rate limiting. An account can no longer be deleted with a phone number alone. **Note:** SMS/OTP *delivery* is not wired in this codebase (there is no OTP notification class) — the client must configure a delivery channel; the security check on the code holds regardless of delivery. Guarded by `tests/Feature/AccountDeletionTest.php`.
 
 ### M8 — SSRF + bearer-token leak via `resourcePath` ✅
 **Location:** `HyperPayService::getPaymentStatus()` (`HyperPayService.php:62-71`):

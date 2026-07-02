@@ -38,7 +38,7 @@ The client's document listed 21 points. Every real one is fixed; **2 did not exi
 | M4 | `/api/address/delete` IDOR | ✅ ownership check |
 | M5 | `/api/offers/accept` + `/reject` IDOR | ✅ ownership check |
 | M6 | `/api/easykash/pay` unauthenticated | ✅ auth + ownership |
-| M7 | `POST /delete` — delete any account by phone | ⚠️ rate-limited (OTP recommended — see Q3) |
+| M7 | `POST /delete` — delete any account by phone | ✅ now requires a verification code (OTP) |
 | M8 | `resourcePath` SSRF + bearer-token leak | ✅ strict allow-list on the path |
 | M9 | `/admin/login` no rate limiting | ➖ already throttled by Filament (5/min) |
 | M10 | Public web forms no rate limiting | ✅ throttle added |

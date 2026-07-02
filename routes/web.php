@@ -20,6 +20,7 @@ Route::get('contact', [SettingController::class, 'contact'])->name('front.contac
 Route::post('contact-store', [SettingController::class, 'storeContact'])->middleware('throttle:6,1')->name('front.contact.store');
 Route::get('delete-account', [UserController::class, 'deleteAccountView']);
 Route::post('delete', [UserController::class, 'deleteUserAccount'])->middleware('throttle:6,1')->name('front.deleteAccount');
+Route::post('delete-account/send-code', [UserController::class, 'sendDeletionCode'])->middleware('throttle:6,1')->name('front.deleteAccount.sendCode');
 Route::get('artist-register', [ArtistController::class, 'webRegister']);
 Route::post('artist-store', [UserController::class, 'storeArtist'])->middleware('throttle:6,1')->name('user.register');
 // [SECURITY] Removed debug routes /test-mail and /firebase-test. The latter was public and
