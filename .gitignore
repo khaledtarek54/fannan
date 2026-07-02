@@ -5,6 +5,8 @@
 /public/storage
 /storage/*.key
 /vendor
+/storages
+/public_html.zip
 .env
 .env.backup
 .env.production
@@ -17,3 +19,4 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+PROPOSAL.md

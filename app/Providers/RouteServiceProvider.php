@@ -25,16 +25,17 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
         });
 
         // [SECURITY] Dedicated stricter limiters so auth/payment abuse can't be hidden by
-        // (or exhaust) the shared 60/min browsing pool, and vice-versa. See docs/SECURITY_ISSUES.md M11.
+        // (or exhaust) the shared browsing pool, and vice-versa. See docs/SECURITY_ISSUES.md M11.
+        // Tuned so legitimate login/OTP and payment flows (and dev testing from one IP) aren't throttled.
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+            return Limit::perMinute(30)->by($request->ip());
         });
         RateLimiter::for('payment', function (Request $request) {
-            return Limit::perMinute(15)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
         $this->routes(function () {
