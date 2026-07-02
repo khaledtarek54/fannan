@@ -20,7 +20,7 @@ Mobile apps (iOS/Android)
 ## Layers
 
 - **Controllers** (`app/Http/Controllers/`, API ones under `API/`) — thin; validate via FormRequest, delegate to a Service/Repository, return an API Resource.
-- **Services** (`app/Services/`) — business logic (orders, bidding, payments, notifications, artists, chat, etc.).
+- **Services** (`app/Services/`) — business logic (orders, bidding, payments, notifications, artists, chat, etc.). Order pricing is centralised in `OrderPricingService` (so the quote == the charge); artist payout happens **on order completion** via `OrderService::settleOrder` (escrow).
 - **Repositories** (`app/Repositories/`) — data access for users/auth/categories; bound to interfaces in `app/Providers/AppServiceProvider.php` (~lines 105-127).
 - **Models** (`app/Models/`) — Eloquent entities; several use `SoftDeletes` and the Spatie `HasStatuses` trait.
 - **Resources** (`app/Http/Resources/`) — transform models into the JSON contract the apps expect.

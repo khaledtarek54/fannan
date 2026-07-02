@@ -16,6 +16,7 @@ Effort key: **S** ≈ ≤1 day · **M** ≈ 2–4 days · **L** ≈ 1–2 weeks.
 - ✅ Security brief remediated (see `SECURITY_ISSUES.md`) — RCE, payment bypass, IDOR, admin gate, SSRF, rate limits.
 - ✅ Second-round bug review (see `CODE_REVIEW_FINDINGS.md`) — withdrawal, rating, password reset, tax, notifications, debug routes.
 - ✅ Full documentation, Git history with reviewable commits.
+- ✅ Dependency security: safe within-major update (advisories **39 → 4**); composer platform pinned to Hostinger **PHP 8.4**. The remaining 4 need a Laravel 10 → 12 upgrade (see OPEN_QUESTIONS Q6).
 - ⚠️ **No automated tests exist yet** — this is the single biggest gap. Every fix so far is only protected by manual checks.
 - ☐ Open items: VAT quote/charge policy (needs sign-off), mobile app must send `verification_code`, chat-list endpoint (B7), varchar money columns (B9).
 
@@ -32,7 +33,7 @@ Finish the already-identified items so the "known bug" list is empty before we g
 ## Phase 1 — Safety net: automated tests  ·  **L**  ·  *highest ROI*  ·  🟡 STARTED
 PHPUnit + Pest and Faker are already in `composer.json`; there's just no test suite. This is what makes
 the app *stay* fixed.
-- ✅ **Done:** harness set up (`fanna_testing` MySQL DB, `TestCase`/`CreatesApplication`, Passport client in `setUp`, factories for `User`/`Order`/`Transaction`) and **15 passing regression tests** covering the money + auth fixes (admin gate, EasyKash callback, order ownership, password reset, rating ownership, withdrawal balance). See `tests/Feature/`.
+- ✅ **Done:** harness set up (`fanna_testing` MySQL DB, `TestCase`/`CreatesApplication`, Passport client in `setUp`, factories) and **35 passing feature tests** covering the security + business fixes (admin gate, EasyKash callback, order/address/rating ownership, password reset, withdrawal balance, pricing, settlement/escrow, coupons, chat, account deletion, invoice, order status). See `tests/Feature/`.
 - ☐ **Remaining:** broaden coverage — bidding flow, coupon/tax math (quote == charge), address/gallery/support IDOR happy+sad paths, notifications, and the rating credit/dedup path (needs an `OrderDate` factory + `is_complete`).
 - Set up the test harness: a dedicated test database (in-memory SQLite or a `fanna_testing` MySQL), `RefreshDatabase`, model factories for `User`, `Order`, `OrderOffer`, `BiddingOrderArtist`, `Address`, `Transaction`, `Setting`.
 - **Regression tests for every fix already made** (guards so they can never come back):

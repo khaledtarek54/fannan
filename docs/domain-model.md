@@ -78,8 +78,9 @@ Models using **SoftDeletes** can be restored; models using **HasStatuses** (Orde
 ### Direct order
 1. Client creates an order targeting a specific **artist** (`type=direct`) → status `artist_pending`.
 2. Artist **accepts** with a quoted `cost` (`OrderController@accept`), or negotiation happens via **OrderOffer** counter-offers (`@offer`).
-3. Client **checkout** → payment (HyperPay/EasyKash) → order `is_paid`, status progresses to `completed`.
-4. Client **rates** the artist after completion.
+3. Client **checkout** → payment (HyperPay/EasyKash) → order `is_paid`.
+4. On the order's end date the nightly job marks it **`completed`** and **credits the artist** their net earnings (escrow — see [BUSINESS_LOGIC_ISSUES.md](BUSINESS_LOGIC_ISSUES.md)).
+5. Client may **rate** the artist — a review only; it does not move money.
 
 ### Bidding order
 1. Client posts a job with talents/subcategories & optional budgets (`type=bidding`).
@@ -88,10 +89,10 @@ Models using **SoftDeletes** can be restored; models using **HasStatuses** (Orde
 4. Payment and rating proceed per accepted bid.
 
 ### Wallet & payouts
-- Artist earnings recorded as `Transaction` (type `income`), net of `platform_fees`.
-- Artists request **withdrawals** (`transactions/request`, type `withdraw`); admins process them via the Filament `WithdrawTransactionResource`.
+- Artists are paid **on order completion** (`OrderService::settleOrder`): a `Transaction` (type `income`) for `cost − platform_fee`, **once** per order, for both direct and bidding orders. Rating is a review only. See [BUSINESS_LOGIC_ISSUES.md](BUSINESS_LOGIC_ISSUES.md).
+- Artists request **withdrawals** (`transactions/request`, type `withdraw`); the balance check counts pending requests. Admins process them via the Filament `WithdrawTransactionResource`.
 
 ## Roles & admin
 
 - A user is a **client** or **artist** via `users.role` (`UserRole`).
-- There is **no admin role**. The Filament panel currently authorizes any authenticated user (`User::canAccessPanel()` returns `true`). Admin actions (support replies, withdrawal processing) reference `reply_user_id` but there is no formal admin/permission model. This is a known gap — see [SECURITY_ISSUES.md](SECURITY_ISSUES.md).
+- Admin access is gated by a dedicated **`users.is_admin`** flag (`User::canAccessPanel()` returns `(bool) $this->is_admin`) — fixed from the previous "any authenticated user" behavior (A1). There is still no full roles/permissions model (a documented follow-up); admin actions (support replies, withdrawal processing) reference `reply_user_id`.

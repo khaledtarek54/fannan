@@ -47,6 +47,10 @@ The app integrates **two** gateways. HyperPay is the primary (KSA) path used by 
 - **Package:** `mcamara/laravel-localization` (`config/laravellocalization.php`; supported en/es/ar, default en).
 - **Runtime:** the custom `Localization` middleware overrides URL-based detection — it reads the `lang` **header** (default `ar`) and sets the locale directly. Filament uses translatable fields for en/ar.
 
+## PDF (invoices)
+
+- **Package:** `barryvdh/laravel-dompdf`. Used by `InvoiceController::download` (`GET /api/invoice/download`) to render `resources/views/invoices/order.blade.php` into a downloadable PDF. Participant-only, IBAN omitted.
+
 ## Observability
 
 - **Telescope** (`laravel/telescope`) — enabled in **local** only (`AppServiceProvider` ~100-102), path `/telescope`, DB driver, slow-query threshold 100ms.

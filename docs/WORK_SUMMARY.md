@@ -103,10 +103,15 @@ The core marketplace payout was broken — artists were only paid when a client 
   database, and put it under Git with a clean history (small, reviewable commits per fix).
 - **Documentation:** a full `docs/` set — architecture, domain model, API reference, admin panel,
   integrations — plus the findings docs referenced above.
-- **Automated test suite:** built from scratch (there were none) — **28 passing feature tests** that
-  guard every security and business fix (payout, ownership, pricing, password reset, coupons, chat, …).
+- **Automated test suite:** built from scratch (there were none) — **35 passing feature tests** that
+  guard every security and business fix (payout/escrow, ownership, pricing, password reset, coupons, chat,
+  account deletion, invoice, order status, …).
+- **New secure endpoints:** built the two never-implemented items — a participant-only invoice **PDF**
+  download (`barryvdh/laravel-dompdf`) and a participant-only order-status lookup.
 - **Pricing:** unified the quote and the charge into one `OrderPricingService` so they can't diverge.
 - **Chat list:** implemented the previously-empty conversations endpoint.
+- **Dependency hardening:** pinned the composer platform to Hostinger's **PHP 8.4** and ran a safe
+  within-major security update — advisories **39 → 4** (the rest need a Laravel 10 → 12 upgrade; see OPEN_QUESTIONS Q6).
 - **Environment fixes:** repaired a corrupted Mockery package from the download, stopped `bootstrap/cache`
   from leaking dev providers into deploys, and generated local Passport keys for the test suite.
 

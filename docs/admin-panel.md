@@ -15,18 +15,20 @@ Provider: `app/Providers/Filament/AdminPanelProvider.php`.
 | Branding | custom "Co Headline" font; purple/pink/red/indigo palette; custom favicon |
 | Auto-discovery | Resources in `app/Filament/Resources` (18), Widgets in `app/Filament/Widgets` |
 
-## Access control ⚠️
+## Access control ✅ (fixed — A1)
 
-`app/Models/User.php` → `canAccessPanel()` currently:
+`app/Models/User.php` → `canAccessPanel()`:
 
 ```php
 public function canAccessPanel(Panel $panel): bool
 {
-    return true; // every authenticated user can enter /admin
+    return (bool) $this->is_admin; // only explicit admins
 }
 ```
 
-Previous email-domain checks (`@fannan.sa`, `@gdlksa.com`) are commented out. There is **no admin role** in `UserRole`. As a result **any** client or artist account can log into the admin panel. This is tracked as a finding in [SECURITY_ISSUES.md](SECURITY_ISSUES.md) and must be fixed before production.
+This used to `return true` — **every** authenticated client/artist could enter `/admin` (finding A1). It is now gated on a dedicated `users.is_admin` column (added by migration; intentionally **not** mass-assignable). The column defaults to `false`, so after deploying you must flag the real admin(s):
+`UPDATE users SET is_admin = 1 WHERE email = '...';`
+See [SECURITY_ISSUES.md](SECURITY_ISSUES.md) A1.
 
 ## Resources (18) by navigation group
 

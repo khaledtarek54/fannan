@@ -28,6 +28,7 @@ This `docs/` folder documents the system for maintenance and future enhancement.
 - **Auth:** Laravel **Passport** (`auth:api`) for the mobile API; Sanctum is installed but only used by the `/api/user` stub
 - **DB:** MySQL (`utf8mb4`)
 - **Payments:** HyperPay (primary, KSA — MADA/Visa/Apple Pay) and EasyKash (secondary, EGP)
+- **PDF:** `barryvdh/laravel-dompdf` (invoice download)
 - **Push:** Firebase Cloud Messaging via `kreait/laravel-firebase` + `laravel-notification-channels/fcm`
 - **Social login:** Socialite (Google, Apple, Facebook)
 - **i18n:** `mcamara/laravel-localization` + Filament translatable fields (en/ar)
