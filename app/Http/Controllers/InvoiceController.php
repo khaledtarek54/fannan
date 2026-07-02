@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Dompdf\Dompdf;
 
 class InvoiceController extends Controller
 {
@@ -76,6 +77,8 @@ class InvoiceController extends Controller
                 $fileName,
                 ['Content-Type' => 'application/pdf']
             );
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e; // [SECURITY] Preserve 403/404 — don't mask the ownership check as a 500 (H1).
         } catch (\Throwable $e) {
             Log::error('Invoice download failed', [
                 'order_id' => $request->order_id,
@@ -209,11 +212,17 @@ class InvoiceController extends Controller
             // Calculate total price
             $totalPrice = (float) ($order->cost - ($order->coupon_amount ?? 0));
 
+            // [M2] Return the order's LIFECYCLE status (ACCEPTED/COMPLETED/...) as `status`, wrapped in a
+            // `data` envelope per the delivered spec. The payment status is kept alongside so callers
+            // that need it don't lose it. See docs/SECURITY_ISSUES.md M2.
             $orderStatus = [
                 'success' => true,
-                'status' => $paymentStatus['status'],
-                'artist_name' => $order->artist->name ?? 'N/A',
-                'total_price' => $totalPrice,
+                'data' => [
+                    'status' => $order->latestStatus()?->name,
+                    'payment_status' => $paymentStatus['status'],
+                    'artist_name' => $order->artist->name ?? 'N/A',
+                    'total_price' => $totalPrice,
+                ],
             ];
 
             Log::info('Order status prepared', [
@@ -223,6 +232,8 @@ class InvoiceController extends Controller
             ]);
 
             return response()->json($orderStatus);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e; // [SECURITY] Preserve 403/404 — don't mask the ownership check as a 500 (M2).
         } catch (\Throwable $e) {
             Log::error('Order status retrieval failed', [
                 'order_id' => $orderId,

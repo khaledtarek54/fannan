@@ -151,14 +151,14 @@ Route::middleware(['auth:api', 'DeleteAccount'])->group(function () {
             Route::post('checkout', 'checkout')->name('checkout');
         });
 
-    // Invoice download endpoint
-    Route::post('invoice/download', [InvoiceController::class, 'download'])->name('invoice.download');
+    // Invoice download endpoint (accept GET + POST so the mobile app can link/stream it either way)
+    Route::match(['get', 'post'], 'invoice/download', [InvoiceController::class, 'download'])->name('invoice.download');
 
     // Get all orders for authenticated user with pagination
     Route::get('orders', [InvoiceController::class, 'getAllOrders'])->name('orders.list')->middleware('auth:api');
 
-    // Order status endpoint with latest transaction (GET request)
-    Route::get('order/status', [InvoiceController::class, 'getOrderStatus'])->name('order.status');
+    // Order status endpoint with latest transaction (accept GET + POST)
+    Route::match(['get', 'post'], 'order/status', [InvoiceController::class, 'getOrderStatus'])->name('order.status');
 
     Route::controller(CouponController::class)
         ->prefix('coupon')
