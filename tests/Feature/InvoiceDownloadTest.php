@@ -19,10 +19,11 @@ class InvoiceDownloadTest extends TestCase
     {
         $order = Order::factory()->create();
 
-        $this->actingAs($order->client, 'api')
-            ->get('/api/invoice/download?order_id=' . $order->id)
-            ->assertStatus(200)
-            ->assertSee('Fannan');
+        $response = $this->actingAs($order->client, 'api')
+            ->get('/api/invoice/download?order_id=' . $order->id);
+
+        $response->assertStatus(200);
+        $this->assertStringStartsWith('%PDF-', $response->getContent()); // a real PDF file
     }
 
     public function test_a_non_participant_cannot_download_the_invoice(): void

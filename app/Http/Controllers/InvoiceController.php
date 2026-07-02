@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Services\OrderPricingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 /**
@@ -35,11 +36,7 @@ class InvoiceController extends Controller
 
         $breakdown = $this->pricing->breakdown((float) $order->total_cost, (float) ($order->coupon_amount ?? 0));
 
-        $html = view('invoices.order', compact('order', 'breakdown'))->render();
-
-        return response($html, 200, [
-            'Content-Type' => 'text/html; charset=UTF-8',
-            'Content-Disposition' => 'inline; filename="invoice-' . ($order->number ?? $order->id) . '.html"',
-        ]);
+        return Pdf::loadView('invoices.order', compact('order', 'breakdown'))
+            ->download('invoice-' . ($order->number ?? $order->id) . '.pdf');
     }
 }
