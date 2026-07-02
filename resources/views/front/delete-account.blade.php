@@ -62,6 +62,13 @@
                         </div>
                         <div class="col-lg-12 col-12 form-group mini mb-3">
                             <label class="d-flex mb-2">
+                                <span class="me-2">{{__('front.verification_code')}}</span>
+                                <span class="red-text">* </span>
+                            </label>
+                            <input name="verification_code" class="form-control" type="text" value="{{old('verification_code')}}">
+                        </div>
+                        <div class="col-lg-12 col-12 form-group mini mb-3">
+                            <label class="d-flex mb-2">
                                 <span class="me-2">{{__('front.reason')}}</span>
                                 <span class="red-text">* </span>
                             </label>
@@ -70,7 +77,13 @@
                                 class="form-control"
                             ></textarea>
                         </div>
-                        <div class="col-lg-4 col-12 form-group mini mt-3">
+                        <div class="col-lg-6 col-12 form-group mini mt-3">
+                            <button class="w-100 btn btn-second me-2" type="submit"
+                                    formaction="{{route('front.deleteAccount.sendCode')}}">
+                                <span class="d-inline-block f-normal">{{__('front.send_code')}}</span>
+                            </button>
+                        </div>
+                        <div class="col-lg-6 col-12 form-group mini mt-3">
                             <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
                             <button data-action='submit' class="w-100 btn btn-second me-2" type="submit" data-aos="fade-down">
                                 <span class="d-inline-block f-normal">{{__('front.send')}}</span>

@@ -24,6 +24,9 @@ class DeleteUserAccountRequest extends FormRequest
         return [
             'country_prefix'  => 'required',
             'phone'  => 'required|exists:users,phone',
+            // [SECURITY] Require the SMS verification code so an account can't be deleted with a
+            // phone number alone (see docs/SECURITY_ISSUES.md M7).
+            'verification_code' => 'required',
             'reason'  => 'nullable',
         ];
     }
