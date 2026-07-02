@@ -21,6 +21,7 @@ class PaymentService
         protected readonly OrderPaymentTransactionRepositoryInterface $orderPaymentTransactionRepository,
         protected readonly HyperPayService                            $hyperPayService,
         protected readonly OrderRepository                            $orderRepository,
+        protected readonly OrderPricingService                        $pricing,
     )
     {
     }
@@ -44,11 +45,11 @@ class PaymentService
         }
 
 //        try {
-        $totalCost = $order->total_cost;
-        $tax = Setting::query()->where('type', SettingKey::TAX->value)->first();
-        $taxValue = ($totalCost * $tax->value) / 100;
-        $totalCost += $taxValue;
-        $totalCost -= $order->coupon_amount ?? 0;
+        // [B4] Shared pricing so the charge matches the quote returned by OrderService::checkout.
+        $totalCost = $this->pricing->breakdown(
+            (float) $order->total_cost,
+            (float) ($order->coupon_amount ?? 0)
+        )['total_cost'];
 
         $data = $this->hyperPayService->createPaymentWidget($order->id, $totalCost, 'SAR', 'DB', $payload['payment_method']);
         if (!$data->status)
