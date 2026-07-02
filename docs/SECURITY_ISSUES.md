@@ -101,8 +101,8 @@ Same class of bug as H3.
 **Location:** `routes/api.php:30-42` (public closure). Returns a transaction's status/ref/payload for any `customerReference`, unauthenticated. Combined with C2's small reference space, this both **discloses** payment data and **enables** the C2 attack.
 **Fix:** Require authentication and scope to the caller's own transactions, or remove the endpoint.
 
-### M2 — `/api/order/status` IDOR ❌ NOT PRESENT
-There is no `/api/order/status` route (order routes are index/artist/store/accept/offer/reject/cancel/checkout — `routes/api.php:129-142`). No action; the ownership fixes (H2-H4/M3) cover the order surface that does exist.
+### M2 — `/api/order/status` IDOR ❌ NOT PRESENT (risk verified absent)
+There is no `/api/order/status` route (order routes are index/artist/store/accept/offer/reject/cancel/checkout — `routes/api.php:129-142`). We also verified the *underlying* risk ("view an order you're not part of") is not present elsewhere: the order-read endpoints that DO exist — `GET /api/order` and `GET /api/order/artist` — are scoped by role in `BaseRepository::index` (`checkAuthClient`/`checkAuthArtist`): a **client** only sees rows where `client_id` = their id, an **artist** only where `artist_id` = theirs. So there is no "list/view arbitrary orders" leak. (Bidding orders are viewable by artists by design — a job board.) The ownership fixes (H2-H4/M3) cover the state-changing order actions.
 
 ### M3 — `/api/order/offer`: counter-offer on another client's order ✅
 **Location:** `OrderController@offer` → `OrderService::counterOffer()` (`OrderService.php:99-111`). Role-checked as client, but no check the order belongs to the caller.
