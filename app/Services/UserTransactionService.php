@@ -35,6 +35,12 @@ class UserTransactionService
             return null;
         }
 
+        // [SECURITY] Idempotency — ignore replays of an already-paid transaction so a captured,
+        // valid callback can't be replayed to re-trigger downstream effects (L2).
+        if ($payment->is_paid) {
+            return $payment;
+        }
+
         $payment->status           = $data->status;
         $payment->easykash_ref     = $data->easykashRef;
         $payment->payment_method   = $data->PaymentMethod;
@@ -54,34 +60,10 @@ class UserTransactionService
         return $payment;
     }
 
-    /**
-     * Update DB from EasyKash GET redirect (simpler update with query params)
-     */
-    public function updateFromRedirect(string $customerReference, string $status, ?string $easykashRef = null): ?UserTransaction
-    {
-        $payment = UserTransaction::where('customer_reference', $customerReference)->first();
-
-        if (! $payment) {
-            return null;
-        }
-
-        $payment->status = $status;
-
-        if ($easykashRef) {
-            $payment->easykash_ref = $easykashRef;
-        }
-
-        if ($status === "PAID") {
-            $payment->is_paid = true;
-            if ($payment->order) {
-                $payment->order->update(['is_paid' => true]);
-            }
-        }
-
-        $payment->save();
-
-        return $payment;
-    }
+    // [SECURITY] updateFromRedirect() was REMOVED: it mutated payment state (is_paid) from the
+    // unauthenticated, unsigned EasyKash GET redirect using the untrusted query `status`
+    // (see docs/SECURITY_ISSUES.md C2). Payment state is now changed only by updateFromCallback()
+    // after HMAC-SHA512 signature verification.
       /**
      * Get transaction status by customer reference
      */

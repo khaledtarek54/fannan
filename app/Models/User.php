@@ -57,6 +57,7 @@ class User extends Authenticatable implements FilamentUser
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_admin' => 'boolean',
     ];
 
     /**
@@ -69,9 +70,10 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-//        return str_ends_with($this->email, '@fannan.sa') && $this->hasVerifiedEmail();
-//        return str_ends_with($this->email, '@gdlksa.com') && $this->hasVerifiedEmail();
-        return true;
+        // [SECURITY] Only explicit admins may access the Filament panel (A1). Previously returned
+        // true for EVERY authenticated user (any client/artist could reach /admin and read/write
+        // all data). `is_admin` is intentionally NOT mass-assignable. See docs/SECURITY_ISSUES.md A1.
+        return (bool) $this->is_admin;
     }
 
     public function userCategories(): HasMany

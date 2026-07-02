@@ -36,6 +36,10 @@ class InvoiceController extends Controller
                 'userTransaction',
             ])->findOrFail($request->order_id);
 
+            // [SECURITY] Only the order's own client or artist may download its invoice (H1 IDOR).
+            $userId = (int) auth()->id();
+            abort_unless((int) $order->client_id === $userId || (int) $order->artist_id === $userId, 403);
+
             Log::info('Order retrieved successfully', [
                 'order_id' => $order->id,
                 'client_name' => $order->client->name ?? 'N/A',
@@ -186,6 +190,10 @@ class InvoiceController extends Controller
                     $query->latest()->limit(1);
                 },
             ])->findOrFail($orderId);
+
+            // [SECURITY] Only a participant (client or artist) of the order may read its status (M2 IDOR).
+            $userId = (int) auth()->id();
+            abort_unless((int) $order->client_id === $userId || (int) $order->artist_id === $userId, 403);
 
             Log::info('Order retrieved successfully for status', [
                 'order_id' => $order->id,

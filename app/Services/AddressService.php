@@ -61,7 +61,11 @@ class AddressService
      */
     public function destroy(int $modelId): bool
     {
-        return $this->addressRepository->deleteById($modelId);
+        // [SECURITY] Only delete an address that belongs to the authenticated user (M4 IDOR).
+        // Previously deleted by id alone, letting any client delete another client's addresses.
+        $address = Address::where('id', $modelId)->where('user_id', auth()->id())->first();
+        abort_if($address === null, 403);
+        return (bool) $address->delete();
     }
 
 private function getCityName(float $lat, float $lon)

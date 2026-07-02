@@ -13,7 +13,7 @@ class CheckoutRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->user()->role == UserRole::CLIENT->value;
+        return auth()->user()?->role === UserRole::CLIENT->value;
     }
 
     /**

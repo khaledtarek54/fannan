@@ -33,6 +33,9 @@ class PaymentService
     {
         /** @var Order $order */
         $order = $this->orderRepository->findById($payload['order_id']);
+        // [SECURITY] Only the order's own client may initiate payment for it (H5).
+        abort_if($order === null, 404);
+        abort_unless((int) $order->client_id === (int) auth()->id(), 403);
         if ($order->is_paid) {
             return [
                 'status' => false,

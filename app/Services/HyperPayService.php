@@ -61,8 +61,19 @@ class HyperPayService
 
     public function getPaymentStatus($request): array
     {
-        $resourcePath = $request->resourcePath;
+        $resourcePath = (string) $request->resourcePath;
         $paymentMethod = $request->payment_method??"card";
+        // [SECURITY] resourcePath is attacker-controllable and the outbound request below carries our
+        // HyperPay bearer token. Validate it strictly to a HyperPay checkout-status path so it can't
+        // be redirected to an arbitrary host (SSRF / bearer-token exfiltration). See docs M8.
+        if (! preg_match('#^/v1/checkouts/[A-Za-z0-9._-]+/payment$#', $resourcePath)) {
+            return [
+                'status' => false,
+                'message' => trans('app.payment_error'),
+                'status_string' => 'Not paid',
+                'checkoutId' => $request->id,
+            ];
+        }
         $this->entityId = $this->getEntityId($paymentMethod);
         $url = $this->baseUrl . $resourcePath . '?entityId=' . $this->entityId;
         try {

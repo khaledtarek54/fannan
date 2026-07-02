@@ -24,6 +24,8 @@ class BiddingOrderArtistService
     {
         /** @var BiddingOrderArtist $model */
         $model = $this->biddingOrderArtistRepository->findById($modelId, relations: ['artist', 'order']);
+        // [SECURITY] Only the client who owns the bidding order may accept/reject its offers (M5 IDOR).
+        abort_unless($model->order && (int) $model->order->client_id === (int) auth()->id(), 403);
         $model->is_accepted = $isAccepted;
         $model->save();
         $model->setStatus($status);

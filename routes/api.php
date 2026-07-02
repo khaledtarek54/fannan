@@ -61,15 +61,21 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 
 Route::post('/address/reverse-geocode', [AddressController::class, 'reverseGeocode']);
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/login-social', [AuthController::class, 'socialLogin']);
-Route::post('social/login', [AuthController::class, 'socialLogin']);
-Route::post('/verification/check', [AuthController::class, 'checkCode']);
-Route::post('send/code', [AuthController::class, 'sendCodeAgain']);
-Route::post('/password/update', [AuthController::class, 'updatePassword']);
-Route::post('/check-phone-exists', [AuthController::class, 'checkPhoneExists']);
-Route::apiResource('invoices', InvoiceController::class);
+
+// [SECURITY] Unauthenticated auth endpoints get a dedicated stricter limiter so brute-force /
+// credential-stuffing / OTP-spam can't hide in the shared browsing pool (M11).
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login-social', [AuthController::class, 'socialLogin']);
+    Route::post('social/login', [AuthController::class, 'socialLogin']);
+    Route::post('/verification/check', [AuthController::class, 'checkCode']);
+    Route::post('send/code', [AuthController::class, 'sendCodeAgain']);
+    Route::post('/password/update', [AuthController::class, 'updatePassword']);
+    Route::post('/check-phone-exists', [AuthController::class, 'checkPhoneExists']);
+});
+// [SECURITY] Removed public apiResource('invoices') — it exposed unauthenticated CRUD wired to
+// controller methods that don't exist (L1). The real invoice endpoints are authenticated below.
 
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('settings', [SettingController::class, 'index']);
@@ -235,9 +241,12 @@ Route::controller(EasyKashController::class)
     ->prefix('easykash')
     ->as('easykash.')
     ->group(function () {
-        Route::post('pay', 'createPayment');
+        // [SECURITY] pay + status now require authentication (M6, M1). callback stays public for the
+        // external gateway: its POST branch is HMAC-verified and its GET branch no longer mutates
+        // payment state (C2). Payment creation is also payment-throttled (M11).
+        Route::post('pay', 'createPayment')->middleware(['auth:api', 'throttle:payment']);
+        Route::post('status', 'status')->middleware('auth:api');
         Route::match(['get', 'post'], 'callback', 'callback');
-        Route::post('status', 'status');
     });
 
 // [REMOVED 2026-07-02] Unauthenticated arbitrary-Artisan RCE route deleted for security.
@@ -255,5 +264,6 @@ Route::controller(EasyKashController::class)
 // });
 
 
-Route::post('/checkout', [PaymentController::class, 'checkout']);
-Route::get('webhook', [PaymentController::class, 'webhook']);
+// [SECURITY] Removed duplicate UNAUTHENTICATED POST /checkout (H5). The only checkout entry point
+// is the authenticated POST /payment/checkout inside the auth:api group above.
+Route::get('webhook', [PaymentController::class, 'webhook']); // HyperPay shopper return URL (resourcePath validated — M8)

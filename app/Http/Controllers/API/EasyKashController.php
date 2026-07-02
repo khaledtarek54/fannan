@@ -71,37 +71,17 @@ class EasyKashController extends Controller
                     'query_params' => $request->query(),
                 ]);
 
-                $status = strtoupper((string) $request->query('status', ''));
+                // [SECURITY] The GET redirect is the shopper's browser returning from EasyKash.
+                // It is NOT authenticated or signature-verified, so it must NEVER mutate payment
+                // state — otherwise anyone can mark any order PAID via a crafted URL
+                // (see docs/SECURITY_ISSUES.md C2). Payment state is changed only by the
+                // HMAC-verified POST webhook below. Redirect based on the record's REAL stored state.
                 $customerReference = $request->query('customerReference', '');
-                $easykashRef = $request->query('easykashRef') ?? $request->query('providerRefNum');
+                $payment = $customerReference
+                    ? \App\Models\UserTransaction::where('customer_reference', $customerReference)->first()
+                    : null;
 
-                Log::info('EasyKash GET params extracted', [
-                    'status' => $status,
-                    'customerReference' => $customerReference,
-                    'easykashRef' => $easykashRef,
-                ]);
-
-                // Update the database record before redirecting
-                if ($customerReference) {
-                    Log::info('Updating transaction from GET redirect', [
-                        'customerReference' => $customerReference,
-                        'status' => $status,
-                    ]);
-
-                    $this->transactionService->updateFromRedirect(
-                        $customerReference,
-                        $status,
-                        $easykashRef
-                    );
-
-                    Log::info('Transaction updated successfully from GET redirect', [
-                        'customerReference' => $customerReference,
-                    ]);
-                } else {
-                    Log::warning('GET callback received but customerReference is empty');
-                }
-
-                return $status === 'PAID'
+                return ($payment && $payment->is_paid)
                     ? redirect('/payment-success.html')
                     : redirect('/payment-failed.html');
             }
@@ -232,6 +212,10 @@ class EasyKashController extends Controller
                 'status' => 'NOT_FOUND',
             ], 404);
         }
+
+        // [SECURITY] Only the transaction's own client may read it — prevents enumerating other
+        // users' payment amounts/methods/status by customerReference (M1).
+        abort_unless((int) optional($transaction->order)->client_id === (int) auth()->id(), 403);
 
         Log::info('EasyKash transaction status retrieved', [
             'customerReference' => $customerReference,

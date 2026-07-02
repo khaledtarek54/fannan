@@ -29,6 +29,18 @@ class OrderService
     }
 
     /**
+     * [SECURITY] Ensure the authenticated user is a participant (client or artist) of the order.
+     * Guards against IDOR on order-level actions (see docs/SECURITY_ISSUES.md H3, H4).
+     */
+    private function authorizeParticipant(?Order $order): Order
+    {
+        abort_if($order === null, 404);
+        $userId = (int) auth()->id();
+        abort_unless((int) $order->client_id === $userId || (int) $order->artist_id === $userId, 403);
+        return $order;
+    }
+
+    /**
      * @param array $columns
      * @param int $pagination
      * @return LengthAwarePaginator
@@ -69,6 +81,8 @@ class OrderService
      */
     public function updateStatus(int $modelId, string $status, string $reason = null): mixed
     {
+        // [SECURITY] Only a participant (client or assigned artist) may change this order's status (H3 reject).
+        $this->authorizeParticipant($this->orderRepository->findById($modelId, relations: ['client', 'artist']));
         return $this->orderRepository->updateStatus($modelId, $status, $reason);
     }
 
@@ -80,6 +94,8 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($payload['order_id'], relations: ['client', 'artist']);
+        // [SECURITY] Only the artist assigned to this order may accept it (H2).
+        abort_unless((int) $model->artist_id === (int) auth()->id(), 403);
         $this->orderRepository->update($model->id, $payload);
         $this->orderRepository->updateStatus($payload['order_id'], OrderStatus::ACCEPTED->value);
         $client = $model->client;
@@ -100,6 +116,8 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($payload['order_id'], relations: ['client', 'artist']);
+        // [SECURITY] Only the order's own client may send a counter-offer on it (M3).
+        abort_unless((int) $model->client_id === (int) auth()->id(), 403);
         $artist = $model->artist;
         $client = $model->client;
         try {
@@ -119,6 +137,8 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($payload['order_id'], ['*'], ['offers', 'acceptedBiddingOrderArtists']);
+        // [SECURITY] Only the order's own client may check out / pay for it (H5).
+        abort_unless((int) $model->client_id === (int) auth()->id(), 403);
         $cost = $model->total_cost;
         (float)$tax = Setting::query()->where('type', SettingKey::TAX->value)->first()?->text_en ?? 0;
 
@@ -165,6 +185,8 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($modelId, relations: ['artist', 'client']);
+        // [SECURITY] Only a participant (client or assigned artist) may cancel this order (H4).
+        $this->authorizeParticipant($model);
         $this->orderRepository->updateStatus($model->id, $status);
         $artist = $model->artist;
         $client = $model->client;
