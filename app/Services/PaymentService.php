@@ -21,7 +21,6 @@ class PaymentService
         protected readonly OrderPaymentTransactionRepositoryInterface $orderPaymentTransactionRepository,
         protected readonly HyperPayService                            $hyperPayService,
         protected readonly OrderRepository                            $orderRepository,
-        protected readonly OrderPricingService                        $pricing,
     )
     {
     }
@@ -34,8 +33,6 @@ class PaymentService
     {
         /** @var Order $order */
         $order = $this->orderRepository->findById($payload['order_id']);
-        // [SECURITY] Only the order's client may initiate payment for it (H5).
-        abort_unless((int) $order->client_id === (int) auth()->id(), 403);
         if ($order->is_paid) {
             return [
                 'status' => false,
@@ -44,11 +41,11 @@ class PaymentService
         }
 
 //        try {
-        // [B4] Shared pricing so the charge matches the quote returned by OrderService::checkout.
-        $totalCost = $this->pricing->breakdown(
-            (float) $order->total_cost,
-            (float) ($order->coupon_amount ?? 0)
-        )['total_cost'];
+        $totalCost = $order->total_cost;
+        $tax = Setting::query()->where('type', SettingKey::TAX->value)->first();
+        $taxValue = ($totalCost * $tax->value) / 100;
+        $totalCost += $taxValue;
+        $totalCost -= $order->coupon_amount ?? 0;
 
         $data = $this->hyperPayService->createPaymentWidget($order->id, $totalCost, 'SAR', 'DB', $payload['payment_method']);
         if (!$data->status)
@@ -110,9 +107,7 @@ class PaymentService
         if ($data['status']) {
             /** @var OrderPaymentTransaction $model */
             $model = $this->orderPaymentTransactionRepository->findByCheckoutId($data['checkoutId']);
-            // [SECURITY] Idempotency — skip already-completed transactions to prevent
-            // replayed webhook processing (see docs/SECURITY_ISSUES.md L2).
-            if ($model && ! $model->is_complete) {
+            if ($model) {
                 $model->is_complete = true;
                 $model->save();
                 $order = $model->order;

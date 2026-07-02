@@ -28,9 +28,9 @@ class ProfileArtistResource extends JsonResource
             "images_count" => $this->works->where('type', FileType::IMAGE->value)->count(),
             "completed_profile" => (bool)$this->completed_profile,
             'facebook' => $this->facebook,
-            'instagram' => $this->instagam,
-            'twitter' => $this->twiteer,
-            'snapchat' => $this->sanpchat,
+            'instagram' => $this->instagram,
+            'youtube' => $this->youtube,
+            'snapchat' => $this->snapchat,
             'whatsapp' => $this->whatsapp,
         ];
     }

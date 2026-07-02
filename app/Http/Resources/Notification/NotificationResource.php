@@ -30,6 +30,7 @@ class NotificationResource extends JsonResource
             'body' => $this->body,
             'model_type' => $this->model_type,
             'model_id' => $this->model_id,
+           'is_read' => $this->is_read,
             'order' => $model,
         ];
     }

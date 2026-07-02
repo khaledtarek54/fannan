@@ -31,6 +31,15 @@ class ArtistController extends BaseController
         ]);
     }
 
+    public function getAllArtists(): JsonResponse
+    {
+        $artists = \App\Http\Resources\Artist\ArtistWithDistanceResource::collection($this->artistService->getAllArtists([]));
+        return response()->json([
+            'status' => true,
+            'artists' => $artists,
+        ]);
+    }
+
     public function updateCategories(ArtistCategoryRequest $request): JsonResponse
     {
         $this->artistService->updateCategories($request->categories);
@@ -51,6 +60,12 @@ class ArtistController extends BaseController
             'artist' => new ProfileArtistResource($artist),
             'status' => true,
         ]);
+    }
+
+    public function deleteAccount(): JsonResponse
+    {
+        $this->artistService->deleteAccount();
+        return $this->sendResponse(true, trans('app.done'));
     }
 
     public function webRegister()

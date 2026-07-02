@@ -29,8 +29,11 @@ class StoreOrderRequest extends FormRequest
             'artist_id' => 'required|exists:users,id',
             'subcategories' => 'required|array',
             'subcategories.*' => 'required|exists:sub_categories,id',
-            'start_date' => 'required',
-            'end_date' => 'required',
+            'dates' => 'required|array',
+            'dates.*.start_date' => 'required|date',
+            'dates.*.end_date' => 'required|date',
+            'dates.*.start_time' => 'required',
+            'dates.*.end_time' => 'required',
             'address_id' => 'required|exists:addresses,id',
             'description' => 'nullable',
         ];
@@ -40,23 +43,29 @@ class StoreOrderRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $artistId = $this->input('artist_id');
-            $startDate = Carbon::parse($this->input('start_date'));
-            $endDate = Carbon::parse($this->input('end_date'));
+            $dates = $this->input('dates', []);
 
-            $isBusy = UserDate::query()
-                ->where('user_id', $artistId)
-                ->where(function ($query) use ($startDate, $endDate) {
-                    $query
-                        ->whereBetween('start_date', [$startDate, $endDate])
-                        ->orWhereBetween('end_date', [$startDate, $endDate])
-                        ->orWhere(function ($query) use ($startDate, $endDate) {
-                            $query->where('start_date', '<=', $startDate)
-                                ->where('end_date', '>=', $endDate);
-                        });
-                })
-                ->exists();
-            if ($isBusy) {
-                $validator->errors()->add('artist_id', trans('app.artist_not_available'));
+            foreach ($dates as $dateObj) {
+                $startDate = Carbon::parse($dateObj['start_date']);
+                $endDate = Carbon::parse($dateObj['end_date']);
+
+                $isBusy = UserDate::query()
+                    ->where('user_id', $artistId)
+                    ->where(function ($query) use ($startDate, $endDate) {
+                        $query
+                            ->whereBetween('start_date', [$startDate, $endDate])
+                            ->orWhereBetween('end_date', [$startDate, $endDate])
+                            ->orWhere(function ($query) use ($startDate, $endDate) {
+                                $query->where('start_date', '<=', $startDate)
+                                    ->where('end_date', '>=', $endDate);
+                            });
+                    })
+                    ->exists();
+
+//                if ($isBusy) {
+//                    $validator->errors()->add('artist_id', trans('app.artist_not_available'));
+//                    break;
+//                }
             }
         });
     }

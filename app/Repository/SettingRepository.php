@@ -11,7 +11,7 @@ class SettingRepository
     public function getAll()
     {
         $settingsList = [SettingKey::CALL_CENTER->value];
-        return Setting::whereIn('type', $settingsList)->first();
+        return Setting::whereIn('type', $settingsList)->firts();
     }
 
     public function getWhatsappNumber(): string

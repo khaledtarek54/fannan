@@ -3,13 +3,9 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
-use App\Enums\OrderType;
 use App\Enums\SettingKey;
-use App\Enums\TransactionType;
 use App\Models\Order;
 use App\Models\Setting;
-use App\Models\Transaction;
-use App\Models\User;
 use App\Notifications\AcceptOrderNotification;
 use App\Notifications\CancelOrderNotification;
 use App\Notifications\CompleteOrderNotification;
@@ -28,21 +24,8 @@ class OrderService
         protected OrderRepositoryInterface               $orderRepository,
         protected readonly CouponRepositoryInterface     $couponRepository,
         protected readonly CouponUserRepositoryInterface $couponUserRepository,
-        protected readonly OrderPricingService           $pricing,
     )
     {
-    }
-
-    /**
-     * [SECURITY] Ensure the authenticated user is a participant (client or artist) of the order.
-     * Guards against IDOR on order-level actions (see docs/SECURITY_ISSUES.md H3, H4).
-     */
-    private function authorizeParticipant(?Order $order): Order
-    {
-        abort_if($order === null, 404);
-        $userId = (int) auth()->id();
-        abort_unless((int) $order->client_id === $userId || (int) $order->artist_id === $userId, 403);
-        return $order;
     }
 
     /**
@@ -58,28 +41,6 @@ class OrderService
     public function artistOrders()
     {
         return $this->orderRepository->artistOrders();
-    }
-
-    /**
-     * [M2] Return an order's status — for a PARTICIPANT only. The reported `/api/order/status`
-     * endpoint never existed; built here with an ownership check so a caller can't read the
-     * status/artist/price of orders they aren't part of.
-     */
-    public function getOrderStatus(int $orderId): array
-    {
-        /** @var Order $order */
-        $order = $this->orderRepository->findById($orderId, relations: ['client', 'artist']);
-        $this->authorizeParticipant($order);
-
-        return [
-            'order_id' => $order->id,
-            'number' => $order->number,
-            'status' => $order->latestStatus()?->name,
-            'is_paid' => (bool) $order->is_paid,
-            'total_cost' => $order->total_cost,
-            'artist' => $order->artist?->name,
-            'client' => $order->client?->name,
-        ];
     }
 
     /**
@@ -108,9 +69,6 @@ class OrderService
      */
     public function updateStatus(int $modelId, string $status, string $reason = null): mixed
     {
-        // [SECURITY] Only a participant (client or artist) may change this order's status (H3 reject).
-        $order = $this->orderRepository->findById($modelId, relations: ['client', 'artist']);
-        $this->authorizeParticipant($order);
         return $this->orderRepository->updateStatus($modelId, $status, $reason);
     }
 
@@ -122,8 +80,6 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($payload['order_id'], relations: ['client', 'artist']);
-        // [SECURITY] Only the assigned artist may accept this order (H2).
-        abort_unless((int) $model->artist_id === (int) auth()->id(), 403);
         $this->orderRepository->update($model->id, $payload);
         $this->orderRepository->updateStatus($payload['order_id'], OrderStatus::ACCEPTED->value);
         $client = $model->client;
@@ -144,8 +100,6 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($payload['order_id'], relations: ['client', 'artist']);
-        // [SECURITY] Only the order's client may send a counter-offer on it (M3).
-        abort_unless((int) $model->client_id === (int) auth()->id(), 403);
         $artist = $model->artist;
         $client = $model->client;
         try {
@@ -165,9 +119,10 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($payload['order_id'], ['*'], ['offers', 'acceptedBiddingOrderArtists']);
-        // [SECURITY] Only the order's client may check out this order (H5).
-        abort_unless((int) $model->client_id === (int) auth()->id(), 403);
         $cost = $model->total_cost;
+        (float)$tax = Setting::query()->where('type', SettingKey::TAX->value)->first()?->text_en ?? 0;
+
+        $taxAmount = ($cost * $tax) / 100;
 
         $discount = 0;
         $appliedCoupon = false;
@@ -177,8 +132,8 @@ class OrderService
             if (!$usedCoupon) {
                 $discount += $this->orderRepository->calculateCouponAmount($coupon, (float)$cost);
 
-                // [BL7] Do NOT consume the coupon at the quote step — it was being burned even when
-                // the client never paid. Consumption now happens on completion (consumeOrderCoupon).
+                $this->couponUserRepository->create(['user_id' => auth()->id(), 'coupon_id' => $coupon->id,]);
+
                 $model->coupon_id = $coupon->id;
                 $model->coupon_amount = $discount;
                 $model->save();
@@ -186,11 +141,19 @@ class OrderService
             }
         }
 
-        // [B4] Shared pricing so this quote matches the charge in PaymentService exactly.
-        $breakdown = $this->pricing->breakdown((float) $cost, (float) $discount);
+        $totalCost = $cost + $taxAmount - $discount;
+        $vat = Setting::query()->where('type', SettingKey::VAT)->first();
+        $vatAmount = ($totalCost * $vat?->value ?? 0) / 100;
+        $totalCost += $vatAmount;
         $model->setStatus(OrderStatus::IN_PAYMENT->value);
-
-        return $breakdown + ['applied_coupon' => $appliedCoupon];
+        return [
+            'cost' => $cost,
+            'tax' => $taxAmount,
+            'vat' => $vatAmount,
+            'discount' => $discount,
+            'total_cost' => $totalCost,
+            'applied_coupon' => $appliedCoupon,
+        ];
     }
 
     /**
@@ -202,13 +165,13 @@ class OrderService
     {
         /** @var Order $model */
         $model = $this->orderRepository->findById($modelId, relations: ['artist', 'client']);
-        // [SECURITY] Only a participant (client or artist) may cancel this order (H4).
-        $this->authorizeParticipant($model);
         $this->orderRepository->updateStatus($model->id, $status);
         $artist = $model->artist;
         $client = $model->client;
         try {
-            $artist->notify(new CancelOrderNotification($model, $client));
+            if ($artist) {
+                $artist->notify(new CancelOrderNotification($model, $client));
+            }
         } catch (\Exception $exception) {
             Log::info('error while notify user' . $exception->getMessage());
         }
@@ -219,80 +182,16 @@ class OrderService
     {
         $orders = $this->orderRepository->getCompletedOrders();
         foreach ($orders as $order) {
-            if (! $order->is_complete) {
-                continue;
-            }
-            // [BL1-BL3/BL6] Escrow model: pay the artist(s) their net earnings on completion, then
-            // mark COMPLETED. Payout is driven by completion — NOT by the client leaving a rating.
-            $this->settleOrder($order);
-            $this->consumeOrderCoupon($order);
-            $order->setStatus(OrderStatus::COMPLETED->value);
-            $client = $order->client;
-            try {
-                $client->notify(new CompleteOrderNotification($order));
-            } catch (\Exception $exception) {
-                Log::info('error while notify user' . $exception->getMessage());
+            if ($order->is_complete) {
+                $order->setStatus(OrderStatus::COMPLETED->value);
+                $client = $order->client;
+                try {
+                    $client->notify(new CompleteOrderNotification($order));
+                } catch (\Exception $exception) {
+                    Log::info('error while notify user' . $exception->getMessage());
+                }
             }
         }
         return true;
-    }
-
-    /**
-     * Credit each artist their net earnings (service cost minus platform fee) when the order
-     * completes. Handles direct (single artist) and bidding (each accepted bid). Idempotent —
-     * an order is never paid out twice. See docs/BUSINESS_LOGIC_ISSUES.md BL1-BL3.
-     */
-    private function settleOrder(Order $order): void
-    {
-        $alreadySettled = Transaction::query()
-            ->where('type', TransactionType::INCOME->value)
-            ->where('model_type', Order::class)
-            ->where('model_id', $order->id)
-            ->exists();
-        if ($alreadySettled) {
-            return;
-        }
-
-        if ($order->type == OrderType::BIDDING->value) {
-            foreach ($order->acceptedBiddingOrderArtists as $bid) {
-                $this->creditArtist($order, $bid->artist, (float) $bid->cost);
-            }
-        } else {
-            $this->creditArtist($order, $order->artist, (float) $order->cost_value);
-        }
-    }
-
-    private function creditArtist(Order $order, ?User $artist, float $cost): void
-    {
-        if (! $artist) {
-            return;
-        }
-        $fee = (float) ($artist->platform_fees ?? 0);
-
-        Transaction::create([
-            'user_id' => $artist->id,
-            'type' => TransactionType::INCOME->value,
-            'amount' => $cost - ($cost * $fee / 100),
-            'model_type' => Order::class,
-            'model_id' => $order->id,
-        ]);
-    }
-
-    /**
-     * [BL7] Consume the order's coupon only when the order completes (a real sale). Previously it
-     * was burned at the quote step even if the client never paid. Idempotent.
-     */
-    private function consumeOrderCoupon(Order $order): void
-    {
-        if (! $order->coupon_id) {
-            return;
-        }
-        if ($this->couponUserRepository->checkIfExists($order->client_id, $order->coupon_id)) {
-            return;
-        }
-        $this->couponUserRepository->create([
-            'user_id' => $order->client_id,
-            'coupon_id' => $order->coupon_id,
-        ]);
     }
 }

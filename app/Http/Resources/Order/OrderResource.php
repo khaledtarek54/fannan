@@ -40,9 +40,7 @@ class OrderResource extends JsonResource
             'is_complete' => $this->is_complete,
             'artist' => new ArtistResource($this->artist),
             'categories' => OrderCategoryResource::collection($this->categories),
-            'dates' => $this->whenLoaded('dates', function () {
-                return $this->dates->select(['start_date', 'end_date', 'start_time', 'end_time', 'is_completed']);
-            }),
+            'dates' => $this->dates,
             'create_at' => $this->created_at->format('Y/M/d H:i:s A'),
             'offers' => $this->offers->last(),
             'bidding_offers' => BiddingOrderOfferResource::collection($this->acceptedBiddingOrderArtists),

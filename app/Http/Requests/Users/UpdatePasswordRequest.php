@@ -23,9 +23,6 @@ class UpdatePasswordRequest extends FormRequest
     {
         return [
             'password' => "required|min:6",
-            // [SECURITY] Require the SMS verification code so a password can't be reset with a
-            // phone number alone (account takeover). See docs/CODE_REVIEW_FINDINGS.md B3.
-            'verification_code' => 'required',
         ];
     }
 

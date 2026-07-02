@@ -23,7 +23,7 @@ class BiddingOrderOfferResource extends JsonResource
             'status_text' => trans('app.' . $this->status),
             'artist_id' => $this->artist_id,
             'artist' => new UserResource($artist),
-            'average_rate' => (float)$artist->rating_value,
+            'average_rate' => (float)$artist?->rating_value,
             'rates' => $artist?->ratings->count(),
             'is_accepted' => $this->is_accepted,
             'subcategory' => new SubCategoryResource($this->subcategory),

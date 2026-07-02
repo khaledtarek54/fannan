@@ -27,5 +27,6 @@ return [
     'vat_number_required' => 'الرجاء تعبئة حقل VAT Number',
     'cr_number_required' => 'الرجاء تعبئة حقل CR Number',
     'block_account' => 'لقد تم حظر الحساب',
+    'email_not_registered' => 'البريد الإلكتروني غير مسجل في النظام',
 
 ];

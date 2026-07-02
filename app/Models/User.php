@@ -37,8 +37,8 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         "name", "email", "phone", "verification_code", "is_verified", "password",
         "role", "profile_photo", "dob", "gender", "completed_profile", "lang", "wallet", "city",
-        "latitude", "longitude", "vat_number", "cr_number", "iban", "fcm_token", "platform_fees",
-        "reason", 'facebook', 'instagram', 'twiteer', 'snapchat','whatsapp',
+        "latitude", "longitude", "vat_number", "cr_number", "fcm_token", "platform_fees",
+        "reason", 'facebook', 'instagram', 'youtube', 'snapchat','whatsapp',
     ];
 
     /**
@@ -57,7 +57,6 @@ class User extends Authenticatable implements FilamentUser
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'is_admin' => 'boolean',
     ];
 
     /**
@@ -70,10 +69,9 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // [SECURITY] Only explicit admins may access the Filament panel.
-        // Previously returned true for EVERY authenticated user (client/artist).
-        // See docs/SECURITY_ISSUES.md A1. `is_admin` is intentionally NOT mass-assignable.
-        return (bool) $this->is_admin;
+//        return str_ends_with($this->email, '@fannan.sa') && $this->hasVerifiedEmail();
+//        return str_ends_with($this->email, '@gdlksa.com') && $this->hasVerifiedEmail();
+        return true;
     }
 
     public function userCategories(): HasMany
@@ -108,7 +106,7 @@ class User extends Authenticatable implements FilamentUser
         return $this->supports()->where('is_complete', 0);
     }
 
-    public function city(): BelongsTo
+    public function cityRelation(): BelongsTo
     {
         return $this->belongsTo(City::class, 'city_id');
     }
@@ -161,12 +159,9 @@ class User extends Authenticatable implements FilamentUser
 
     public function getTotalWithdrawAttribute()
     {
-        // [BUG] Was filtering on 'is-completed' (hyphen) — a key no Transaction has — so this
-        // ALWAYS returned 0 and the withdrawal balance check (TransactionService) was bypassable.
-        // Count every withdrawal request (pending + completed) as committed against the balance,
-        // which also stops stacking multiple pending requests. See docs/CODE_REVIEW_FINDINGS.md B1.
         return $this->transactions
             ->where('type', TransactionType::WITHDRAW->value)
+            ->where('is-completed', true)
             ->sum('amount');
     }
 

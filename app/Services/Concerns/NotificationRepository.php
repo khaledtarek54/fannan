@@ -26,13 +26,9 @@ class NotificationRepository extends BaseRepository implements NotificationRepos
 
     public function markAsRead(): int
     {
-        // [BUG] Group the OR so the is_read filter applies to both sides — otherwise this parsed as
-        // `user_id=me OR (to_user_id=me AND is_read=false)` and over-matched. See CODE_REVIEW_FINDINGS.md B6.
         return $this->model->newQuery()
-            ->where(function ($q) {
-                $q->where('user_id', auth()->id())
-                    ->orWhere('to_user_id', auth()->id());
-            })
+            ->where('user_id', auth()->id())
+            ->orWhere('to_user_id', auth()->id())
             ->where('is_read', false)
             ->update([
                 'is_read' => true
@@ -45,12 +41,13 @@ class NotificationRepository extends BaseRepository implements NotificationRepos
         if (!auth()->id())
             return 0;
 
-        return $this->model->newQuery()
-            ->where(function ($q) {
-                $q->where('user_id', auth()->id())
-                    ->orWhere('to_user_id', auth()->id());
-            })
-            ->where('is_read', false)
-            ->count();
+       return $this->model->newQuery()
+    ->where(function ($q) {
+        $q->where('user_id', auth()->id())
+          ->orWhere('to_user_id', auth()->id());
+    })
+    ->where('is_read', 0)
+    ->count();
+
     }
 }

@@ -36,6 +36,11 @@ class AddressService
         $data = new stdClass();
         $payload['user_id'] = auth()->id();
         $cityName = $this->getCityName($payload['latitude'], $payload['longitude']);
+        if (!$cityName) {
+            $data->status = false;
+            $data->message = trans('app.address_error_try_again');
+            return $data;
+        }
         $city = $this->getCityIdByName($cityName);
         if (!$city) {
             $data->status = false;
@@ -56,40 +61,39 @@ class AddressService
      */
     public function destroy(int $modelId): bool
     {
-        // [SECURITY] Only delete an address that belongs to the authenticated user (M4).
-        // Previously deleted by id alone, allowing any client to delete others' addresses.
-        $address = Address::where('id', $modelId)
-            ->where('user_id', auth()->id())
-            ->first();
-        abort_if($address === null, 403);
-
-        return (bool) $address->delete();
+        return $this->addressRepository->deleteById($modelId);
     }
 
-    private function getCityName(float $lat, float $lon)
-    {
-        try {
-            $apiKey = config('services.map_api_key');
-            $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$lat},{$lon}&sensor=true&key={$apiKey}";
+private function getCityName(float $lat, float $lon)
+{
+    try {
+        $apiKey = config('services.map_api_key');
+        $url = "https://maps.googleapis.com/maps/api/geocode/json?latlng={$lat},{$lon}&sensor=true&key={$apiKey}";
 
-            $response = Http::get($url);
-            $data = $response->json();
+        $response = Http::get($url);
+        $data = $response->json();
 
-            if (isset($data['results']) && count($data['results']) > 0) {
-                foreach ($data['results'] as $result) {
-                    foreach ($result['address_components'] as $component) {
-                        if (in_array('locality', $component['types'])) {
-                            return $component['long_name'];
-                        }
+        if (!empty($data['results'])) {
+            foreach ($data['results'] as $result) {
+                foreach ($result['address_components'] as $component) {
+                    // First try 'locality'
+                    if (in_array('locality', $component['types'])) {
+                        return $component['long_name'];
+                    }
+                    // Fallback: administrative_area_level_1
+                    if (in_array('administrative_area_level_1', $component['types'])) {
+                        return $component['long_name'];
                     }
                 }
             }
-            return null;
-        } catch (\Exception $exception) {
-            Log::info('Error in get area');
-            return null;
         }
+        return null;
+    } catch (\Exception $exception) {
+        Log::info('Error in get area: '.$exception->getMessage());
+        return null;
     }
+}
+
 
     private function getCityIdByName(string $cityName): Model|null
     {

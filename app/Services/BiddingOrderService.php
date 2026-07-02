@@ -57,7 +57,7 @@ class BiddingOrderService
         $payload['client_id'] = auth()->id();
         $payload['type'] = OrderType::BIDDING->value;
         $model = $this->biddingOrderRepository->create($payload);
-        $this->storeDates($model->id, $payload['start_date'], $payload['end_date']);
+        $this->storeDates($model->id, $payload['dates']);
         $this->storeCategories($model->id, $payload['talents']);
         $model->setStatus(OrderStatus::PENDING->value);
         return $model;
@@ -65,24 +65,25 @@ class BiddingOrderService
 
     /**
      * @param int $modelId
-     * @param string $startDate
-     * @param string $endDate
+     * @param array $dates
      * @return void
      */
-    private function storeDates(int $modelId, string $startDate, string $endDate): void
+    private function storeDates(int $modelId, array $dates): void
     {
-        $startDate = Carbon::parse($startDate);
-        $endDate = Carbon::parse($endDate);
-        $currentDate = $startDate->copy();
-        while ($currentDate->lte($endDate)) {
-            $payload['order_id'] = $modelId;
-            $payload['start_date'] = $currentDate->format('Y-m-d');
-            $payload['end_date'] = $currentDate->format('Y-m-d');
-            $payload['start_time'] = $currentDate->format('H:i:s');
-            $payload['end_time'] = $endDate->format('H:i:s');
-            $payload['is_completed'] = false;
-            $this->orderDateRepository->create($payload);
-            $currentDate->addDay();
+        foreach ($dates as $dateObj) {
+            $startDate = Carbon::parse($dateObj['start_date']);
+            $endDate = Carbon::parse($dateObj['end_date']);
+            $currentDate = $startDate->copy();
+            while ($currentDate->lte($endDate)) {
+                $payload['order_id'] = $modelId;
+                $payload['start_date'] = $currentDate->format('Y-m-d');
+                $payload['end_date'] = $currentDate->format('Y-m-d');
+                $payload['start_time'] = $dateObj['start_time'];
+                $payload['end_time'] = $dateObj['end_time'];
+                $payload['is_completed'] = false;
+                $this->orderDateRepository->create($payload);
+                $currentDate->addDay();
+            }
         }
     }
 

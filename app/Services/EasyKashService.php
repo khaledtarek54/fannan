@@ -13,11 +13,9 @@ class EasyKashService
 
     public function __construct()
     {
-        // [ROBUSTNESS] Cast to string so missing EASYKASH_* env values yield '' instead of
-        // throwing a TypeError at construction (which broke `route:list`/`route:cache`).
-        $this->apiKey = (string) config('services.easykash.api_key');
-        $this->redirectUrl = (string) config('services.easykash.redirect_url');
-        $this->secretKey = (string) config('services.easykash.secret_key');
+        $this->apiKey = config('services.easykash.api_key');
+        $this->redirectUrl = config('services.easykash.redirect_url');
+        $this->secretKey = config('services.easykash.secret_key');
     }
 
     public function createDirectPayLink(array $data)

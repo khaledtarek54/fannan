@@ -18,8 +18,13 @@ class NotificationService
      */
     public function all(): Collection|array
     {
-        $this->notificationRepository->markAsRead();
+//        $this->notificationRepository->markAsRead();
         return $this->notificationRepository->all();
+    }
+
+    public function markAsRead(): int
+    {
+        return $this->notificationRepository->markAsRead();
     }
 
     public function unreadNotificationsCount(): int

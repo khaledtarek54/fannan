@@ -20,3 +20,14 @@ yarn-error.log
 /.idea
 /.vscode
 PROPOSAL.md
+
+# secrets/artifacts that were found loose in prod app dir — never commit
+client_secret_*.json
+fannan-*.json
+subscriptions.csv
+gcm-diagnose.log
+*.zip
+.env.bak*
+.DS_Store
+docker-compose.yml
+hayperpay_view.html

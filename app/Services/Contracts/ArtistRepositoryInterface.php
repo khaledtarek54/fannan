@@ -37,4 +37,6 @@ interface ArtistRepositoryInterface extends BaseRepositoryInterface
      * @return Model
      */
     public function findById(int $modelId, array $columns = ['*'], array $relations = []): Model;
+    
+    public function delete(int $artistId): bool;
 }

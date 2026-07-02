@@ -38,22 +38,4 @@ class ChatRepository extends BaseRepository implements ChatRepositoryInterface
             ->orderByDesc('created_at')
             ->get();
     }
-
-    /**
-     * [B7] Latest message per conversation partner for the authenticated user — powers the
-     * chat-list screen (GET /api/chat), which was previously an empty stub.
-     */
-    public function conversations(): Collection
-    {
-        $userId = auth()->id();
-
-        return $this->model->with(['fromUser', 'toUser'])
-            ->where('from_user_id', $userId)
-            ->orWhere('to_user_id', $userId)
-            ->orderByDesc('created_at')
-            ->get()
-            ->groupBy(fn (Chat $chat) => $chat->from_user_id == $userId ? $chat->to_user_id : $chat->from_user_id)
-            ->map(fn ($messages) => $messages->first()) // already newest-first
-            ->values();
-    }
 }

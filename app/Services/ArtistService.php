@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Dtos\CategoryDto;
+use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\Contracts\ArtistRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -18,6 +19,16 @@ class ArtistService
     public function index(array $params)
     {
         return $this->artistRepository->index($params)->where('completed_profile', true);
+    }
+
+    public function getAllArtists(array $params)
+    {
+        $params['filter'] = array_merge($params['filter'] ?? [], [
+            'role' => UserRole::ARTIST->value,
+            'completed_profile' => true,
+        ]);
+
+        return $this->artistRepository->index($params);
     }
 
     /**
@@ -44,5 +55,12 @@ class ArtistService
     {
         $relations = ['ratings', 'userCategories.category', 'userCategories.subcategory', 'userCategories.priceRange'];
         return $this->artistRepository->findById($modelId, ['*'], $relations);
+    }
+
+    public function deleteAccount(): bool
+    {
+        /** @var User $artist */
+        $artist = Auth::user();
+        return $this->artistRepository->delete($artist->id);
     }
 }

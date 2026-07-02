@@ -69,7 +69,7 @@ class AuthController extends BaseController
 
     public function updatePassword(CheckPhoneNumberRequest $checkPhoneNumberRequest, UpdatePasswordRequest $updatePasswordRequest): JsonResponse
     {
-        $user = $this->userRepository->updatePassword($checkPhoneNumberRequest->phone, $updatePasswordRequest->password, $updatePasswordRequest->verification_code);
+        $user = $this->userRepository->updatePassword($checkPhoneNumberRequest->phone, $updatePasswordRequest->password);
         return $this->sendResponse($user, trans("app.done"));
     }
 
@@ -77,6 +77,12 @@ class AuthController extends BaseController
     {
         $this->userRepository->updateFcmToken($request->fcm_token);
         return $this->sendResponse([], trans("app.done"));
+    }
+
+     public function checkPhoneExists(Request $request): JsonResponse
+    {
+        $user = $this->userRepository->getUserByPhone($request->phone);
+        return $this->sendResponse(['exists' => $user ? true : false], trans("app.done"));
     }
 
 }

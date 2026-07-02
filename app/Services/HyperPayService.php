@@ -13,10 +13,8 @@ class HyperPayService
 
     public function __construct()
     {
-        // [ROBUSTNESS] Cast to string so a missing HYPERPAY_* env value yields '' instead of
-        // throwing a TypeError at construction (which broke `route:list`/`route:cache`).
-        $this->baseUrl = (string) config('hyperpay.base_url');
-        $this->accessToken = (string) config('hyperpay.access_token');
+        $this->baseUrl = config('hyperpay.base_url');
+        $this->accessToken = config('hyperpay.access_token');
     }
 
     private function getEntityId(string $paymentMethod): ?string
@@ -63,20 +61,8 @@ class HyperPayService
 
     public function getPaymentStatus($request): array
     {
-        $resourcePath = (string) $request->resourcePath;
-        $paymentMethod = $request->payment_method;
-        // [SECURITY] resourcePath is attacker-controllable and the outbound request below
-        // carries our HyperPay bearer token. Validate it strictly to a HyperPay checkout
-        // status path so it cannot be redirected to an arbitrary host (SSRF / token
-        // exfiltration). See docs/SECURITY_ISSUES.md M8.
-        if (! preg_match('#^/v1/checkouts/[A-Za-z0-9._-]+/payment$#', $resourcePath)) {
-            return [
-                'status' => false,
-                'message' => trans('app.payment_error'),
-                'status_string' => 'Not paid',
-                'checkoutId' => $request->id,
-            ];
-        }
+        $resourcePath = $request->resourcePath;
+        $paymentMethod = $request->payment_method??"card";
         $this->entityId = $this->getEntityId($paymentMethod);
         $url = $this->baseUrl . $resourcePath . '?entityId=' . $this->entityId;
         try {

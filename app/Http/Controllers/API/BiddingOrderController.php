@@ -40,7 +40,7 @@ class BiddingOrderController extends Controller
     {
         $order = $this->biddingOrderService->store($biddingOrderRequest->all());
         return response()->json([
-            'order' => $order,
+            'order' => new BiddingOrderResource($order->load('dates')),
             'status' => true,
         ]);
     }

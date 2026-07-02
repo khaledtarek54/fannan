@@ -41,9 +41,9 @@ class OrderController extends Controller
 
     public function store(StoreOrderRequest $storeOrderRequest): JsonResponse
     {
-        $data = $this->orderService->store($storeOrderRequest->all());
+        $order = $this->orderService->store($storeOrderRequest->all());
         return response()->json([
-            'data' => $data,
+            'order' => new OrderResource($order->load('dates')),
             'status' => true,
         ]);
     }
@@ -90,14 +90,6 @@ class OrderController extends Controller
         return response()->json([
             'message' => trans('app.done'),
             'status' => true
-        ]);
-    }
-
-    public function orderStatus(OrderIdRequest $orderIdRequest): JsonResponse
-    {
-        return response()->json([
-            'data' => $this->orderService->getOrderStatus($orderIdRequest->order_id),
-            'status' => true,
         ]);
     }
 }

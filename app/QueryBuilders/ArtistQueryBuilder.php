@@ -22,13 +22,16 @@ class ArtistQueryBuilder implements BaseQueryBuilder
             }),
             AllowedFilter::scope('category'),
             AllowedFilter::callback('city', function (Builder $query, $value) {
-                if ($value)
-                    $query->whereHas('city', function ($query) use ($value) {
-                        if (is_array($value))
-                            $query->whereIn('id', $value);
-                        else
-                            $query->where('id', $value);
+                if ($value) {
+                    $query->where(function ($query) use ($value) {
+                        $query->whereHas('cityRelation', function ($query) use ($value) {
+                            if (is_array($value))
+                                $query->whereIn('id', $value);
+                            else
+                                $query->where('id', $value);
+                        })->orWhere('users.city', 'like', '%' . $value . '%');
                     });
+                }
             }),
         ];
     }

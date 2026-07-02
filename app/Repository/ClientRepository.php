@@ -29,8 +29,9 @@ class ClientRepository
             'dob' => Carbon::parse(Controller::convertArabicDate($request->dob))->format('Y-m-d'),
             'gender' => $request->gender,
             'city_id' => $request->city_id,
-            'latitude' => $request->latitude ?? 0.0,
-            'longitude' => $request->longitude ?? 0.0,
+            'city' => $request->city,
+            'latitude' => $request->latitude,
+            'longitude' => $request->longitude,
             'vat_number' => $request->vat_number,
             'cr_number' => $request->cr_number,
             'profile_photo' => $path,
@@ -39,8 +40,9 @@ class ClientRepository
             'is_verified' => true,
             'instagram' => $request->instagram ?? null,
             'facebook' => $request->facebook ?? null,
-            'twiteer' => $request->twiteer ?? null,
+            'youtube' => $request->youtube ?? null,
             'snapchat' => $request->snapchat ?? null,
+            'whatsapp' => $request->whatsapp ?? null,
         ]);
         if ($user->role == UserRole::ARTIST->value && $request->start_date && $request->end_date) {
             $user->dates()->delete();
@@ -76,8 +78,9 @@ class ClientRepository
     public function delete(): bool
     {
         $user = auth()->user();
-        $user->deleted_at = null;
+        $user->phone = $user->phone . '-deleted-' . now()->timestamp;
         $user->save();
+        $user->delete();
         return true;
     }
 

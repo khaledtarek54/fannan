@@ -62,6 +62,11 @@ class Order extends Model
         return $this->hasMany(BiddingOrderArtist::class, 'order_id');
     }
 
+    public function userTransaction(): HasMany
+    {
+        return $this->hasMany(UserTransaction::class, 'order_id');
+    }
+
     public function acceptedBiddingOrderArtists(): HasMany
     {
         return $this->biddingOrderArtists()->whereHas('statuses', function ($query) {

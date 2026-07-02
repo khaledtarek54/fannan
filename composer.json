@@ -12,7 +12,6 @@
         "ext-bcmath": "*",
         "ext-curl": "*",
         "andreiio/blade-remix-icon": "^2.5",
-        "barryvdh/laravel-dompdf": "^3.1",
         "bezhansalleh/filament-language-switch": "^2.0",
         "blade-ui-kit/blade-heroicons": "^2.1",
         "codeat3/blade-carbon-icons": "^2.16",
@@ -82,15 +81,9 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
-        "platform": {
-            "php": "8.4.0"
-        },
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        },
-        "audit": {
-            "block-insecure": false
         }
     },
     "minimum-stability": "stable",

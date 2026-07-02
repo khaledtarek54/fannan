@@ -55,7 +55,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
         /** @var Order $model */
         $model = parent::create($payload);
         $this->storeCategories($model, $payload);
-        $this->storeOrderDates($model->id, $payload['start_date'], $payload['end_date']);
+        $this->storeOrderDates($model->id, $payload['dates']);
         $model->setStatus(OrderStatus::ARTIST_PENDING->value);
         return $model;
     }
@@ -74,24 +74,25 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
 
     /**
      * @param int $modelId
-     * @param string $startDate
-     * @param string $endDate
+     * @param array $dates
      * @return void
      */
-    private function storeOrderDates(int $modelId, string $startDate, string $endDate): void
+    private function storeOrderDates(int $modelId, array $dates): void
     {
-        $startDate = Carbon::parse($startDate);
-        $endDate = Carbon::parse($endDate);
-        $currentDate = $startDate->copy();
-        while ($currentDate->lte($endDate)) {
-            $data['order_id'] = $modelId;
-            $data['start_date'] = $currentDate->format('Y-m-d');
-            $data['end_date'] = $currentDate->format('Y-m-d');
-            $data['start_time'] = $currentDate->format('H:i:s');
-            $data['end_time'] = $endDate->format('H:i:s');
-            $data['is_completed'] = false;
-            $this->orderDateRepository->create($data);
-            $currentDate->addDay();
+        foreach ($dates as $dateObj) {
+            $startDate = Carbon::parse($dateObj['start_date']);
+            $endDate = Carbon::parse($dateObj['end_date']);
+            $currentDate = $startDate->copy();
+            while ($currentDate->lte($endDate)) {
+                $data['order_id'] = $modelId;
+                $data['start_date'] = $currentDate->format('Y-m-d');
+                $data['end_date'] = $currentDate->format('Y-m-d');
+                $data['start_time'] = $dateObj['start_time'];
+                $data['end_time'] = $dateObj['end_time'];
+                $data['is_completed'] = false;
+                $this->orderDateRepository->create($data);
+                $currentDate->addDay();
+            }
         }
     }
 
@@ -141,16 +142,13 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
      */
     public function getCompletedOrders(): mixed
     {
-        // [BL5/BL6] Complete BOTH direct and bidding orders (was DIRECT-only, so bidding orders
-        // could never complete). Any paid order not already completed is eligible; the date check
-        // (is_complete) happens in the caller.
         return $this->model
+            ->where('type', OrderType::DIRECT->value)
             ->where('is_paid', true)
-            ->whereDoesntHave('statuses', function ($query) {
-                $query->where('name', OrderStatus::COMPLETED->value);
+            ->whereHas('statuses', function ($query) {
+                $query->where('name', OrderStatus::ACCEPTED->value);
             })
-            ->with(['client', 'artist', 'dates', 'statuses', 'acceptedBiddingOrderArtists.artist'])
-            ->get();
+            ->with(['client', 'artist', 'dates', 'statuses'])->get();
     }
 
     public function artistOrders()

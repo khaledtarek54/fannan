@@ -24,8 +24,11 @@ class BiddingOrderRequest extends FormRequest
     {
         return [
             'name' => 'required',
-            'start_date' => 'required',
-            'end_date' => 'required',
+            'dates' => 'required|array',
+            'dates.*.start_date' => 'required|date',
+            'dates.*.end_date' => 'required|date',
+            'dates.*.start_time' => 'required',
+            'dates.*.end_time' => 'required',
             'address_id' => 'required|exists:addresses,id',
             'description' => 'nullable',
             'talents' => 'required|array',

@@ -25,4 +25,16 @@ class SocialLoginRequest extends FormRequest
             'email' => 'required|exists:users,email'
         ];
     }
+
+    /**
+     * Get custom error messages for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.exists' => trans('auth.email_not_registered'),
+        ];
+    }
 }

@@ -34,4 +34,14 @@ class ArtistRepository extends BaseRepository implements ArtistRepositoryInterfa
     {
         return $this->findById($artistId, relations: ['userCategories.category', 'dates', 'works']);
     }
+
+    public function delete(int $artistId): bool
+    {
+        /** @var User $user */
+        $user = $this->findById($artistId);
+        $user->phone = $user->phone . '-deleted-' . now()->timestamp;
+        $user->save();
+        $user->delete();
+        return true;
+    }
 }
