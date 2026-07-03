@@ -53,16 +53,13 @@ decide which real accounts, if any, get admin: `UPDATE users SET is_admin = 1 WH
 The server directory `~/domains/apps.fannan.ai/public_html` is a git checkout of this repo. To deploy:
 
 ```bash
-# 1. from your machine — push to the server
 git push production main
-
-# 2. on the server — pull + install + migrate + clear caches
-ssh -p 65002 u715768425@217.21.90.20 'bash ~/domains/apps.fannan.ai/public_html/deploy.sh'
 ```
 
-`deploy.sh` is idempotent and uses PHP 8.4 (`/opt/alt/php84/usr/bin/php`). See `docs/DEPLOYMENT.md`
-for environment notes (no `config:cache`/`route:cache`; keep dev deps installed — collision is an
-auto-discovered provider).
+That's it — the server's `post-receive` hook auto-runs `deploy.sh` (pull → composer-if-changed →
+migrate → clear caches) and streams the log back. See **`docs/DEPLOYMENT.md`** for the full guide
+(new-developer setup, environment gotchas, rollback, troubleshooting). Note: GitHub Actions can't
+deploy here (Hostinger blocks cloud runner IPs from SSH); GitHub is an off-site backup only.
 
 ---
 
