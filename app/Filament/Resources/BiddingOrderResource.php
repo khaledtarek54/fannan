@@ -126,6 +126,7 @@ class BiddingOrderResource extends Resource
             ->actions([
 //                Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make()->icon(null),
+                \App\Filament\Actions\DownloadInvoiceAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

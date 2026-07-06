@@ -155,4 +155,15 @@ return [
     'non_complete_profile' => 'Incomplete profile',
     'phone_unique' => 'Phone number already exists',
 
+    // Invoices / admin
+    'download_invoice' => 'Download invoice',
+    'invoices' => 'Invoices',
+    'invoice' => 'Invoice',
+    'invoice_number' => 'Invoice #',
+    'paid' => 'Paid',
+    'unpaid' => 'Unpaid',
+    'payment_status' => 'Payment status',
+    'issued_at' => 'Issued at',
+    'total' => 'Total',
+
 ];

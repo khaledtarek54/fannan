@@ -214,6 +214,7 @@ class DirectOrderResource extends Resource
             ->actions([
 
                 Tables\Actions\ViewAction::make(),
+                \App\Filament\Actions\DownloadInvoiceAction::make(),
 //                Tables\Actions\Action::make('complete_payment')
 //                    ->label(trans('app.payment_complete'))
 //                    ->requiresConfirmation()
