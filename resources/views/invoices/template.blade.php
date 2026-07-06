@@ -14,8 +14,12 @@
         SetHTMLFooter) — see InvoiceController::renderPdf — so they are NOT emitted here.
     --}}
     <style>
-        @page { margin: 24px 28px 40px 28px; }
-
+        /*
+         * NO @page margin rule here on purpose: mPDF resets the page setup when it processes
+         * @page in the HTML, which DROPS the footer set via SetHTMLFooter() (the dark bottom bar).
+         * PDF page margins come from InvoiceController::renderPdf's mPDF config instead; the
+         * browser preview uses the .page framing below. See renderPdf().
+         */
         @if (!empty($browser))
         @font-face { font-family: 'ReadexPro'; font-weight: 400; font-style: normal;
             src: url('/front/dist/fonts/ReadexPro/ReadexPro-Regular.ttf') format('truetype'); }
