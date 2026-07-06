@@ -185,5 +185,7 @@ return [
     'read' => 'Read',
     'title' => 'Title',
     'body' => 'Body',
+    'dob' => 'Birthdate',
+    'gender' => 'Gender',
 
 ];

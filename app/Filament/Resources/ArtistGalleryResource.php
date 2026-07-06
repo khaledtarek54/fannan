@@ -57,9 +57,9 @@ class ArtistGalleryResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('user_id')
-                    ->label('Artist')
+                    ->label(trans('app.artist'))
                     ->searchable()
-                    ->options(User::query()->artist()->get()->pluck('name', 'id')->toarray())
+                    ->options(fn () => User::query()->artist()->pluck('name', 'id')->toArray())
             ])
             ->actions([
 //                Tables\Actions\EditAction::make(),
