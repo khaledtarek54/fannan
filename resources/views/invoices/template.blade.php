@@ -3,418 +3,292 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ $invoice_number }}</title>
+    {{--
+        Rendered by mPDF (pure-PHP, Arabic-capable). The SAME HTML is also served at
+        /invoice/preview in the browser. To keep the on-screen preview and the downloaded PDF
+        looking identical, both use the ReadexPro brand font (Fannan's font, Latin + Arabic).
+
+        $browser is true only for the browser preview. When true the template adds an @font-face
+        (loading ReadexPro over HTTP), the centered "paper" framing, the CSS watermark, and the
+        dark footer bar. In the PDF those last two are drawn by mPDF natively (SetWatermarkImage /
+        SetHTMLFooter) — see InvoiceController::renderPdf — so they are NOT emitted here.
+    --}}
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        @page { margin: 24px 28px 40px 28px; }
+
+        @if (!empty($browser))
+        @font-face { font-family: 'ReadexPro'; font-weight: 400; font-style: normal;
+            src: url('/front/dist/fonts/ReadexPro/ReadexPro-Regular.ttf') format('truetype'); }
+        @font-face { font-family: 'ReadexPro'; font-weight: 700; font-style: normal;
+            src: url('/front/dist/fonts/ReadexPro/ReadexPro-Bold.ttf') format('truetype'); }
+        @endif
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
+            font-family: 'ReadexPro', 'DejaVu Sans', sans-serif;
             color: #333;
-            background: #fff;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
-        }
-
-        .company-info h1 {
-            font-size: 28px;
-            color: #c91f6e;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        .company-info p {
             font-size: 11px;
-            color: #666;
-            margin: 2px 0;
+            line-height: 1.5;
         }
 
-        .invoice-title {
-            text-align: right;
-        }
+        .pink { color: #c1157c; }
 
-        .invoice-title h2 {
-            font-size: 24px;
-            color: #333;
-            margin-bottom: 5px;
+        /* ---- Header ---- */
+        .header-table { width: 100%; margin-bottom: 18px; }
+        .logo-box {
+            width: 66px; height: 66px;
+            background: #c1157c;
+            border-radius: 14px;
+            text-align: center;
         }
+        .doc-title { font-size: 26px; font-weight: bold; color: #c1157c; letter-spacing: 1px; }
+        .doc-sub { font-size: 15px; color: #444; }
 
-        .invoice-meta {
-            display: flex;
-            gap: 20px;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 20px;
-        }
+        /* ---- Invoice meta ---- */
+        .meta { margin-bottom: 16px; }
+        .meta p { margin: 1px 0; font-size: 11px; }
+        .meta strong { color: #222; }
+        .status-paid { color: #3a9d3a; font-weight: bold; }
+        .status-pending { color: #d38b00; font-weight: bold; }
+        .status-failed { color: #d32f2f; font-weight: bold; }
 
-        .meta-item {
-            flex: 1;
-        }
-
-        .meta-item strong {
-            display: block;
-            color: #333;
-        }
-
-        .content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .section-title {
-            font-size: 12px;
-            font-weight: bold;
-            color: #333;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 5px;
-        }
-
-        .info-group {
-            margin-bottom: 20px;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            margin-bottom: 4px;
-        }
-
-        .info-label {
-            font-weight: 600;
-            color: #333;
-            width: 50%;
-        }
-
-        .info-value {
-            text-align: left;
-            color: #666;
-        }
-
-        table {
+        /* ---- Billed By / To ---- */
+        .billed-wrap {
             width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
+            background: #f5f5f7;
+            border-radius: 8px;
+            margin-bottom: 22px;
         }
+        .billed-wrap td { padding: 14px 16px; vertical-align: top; width: 50%; }
+        .billed-wrap td.div { border-left: 1px solid #e2e2e6; }
+        .billed-heading { color: #c1157c; font-weight: bold; font-size: 12px; margin-bottom: 6px; }
+        .billed-line { font-size: 11px; color: #444; margin: 2px 0; }
 
-        table thead {
-            background-color: #f5f5f5;
-        }
-
-        table th {
-            padding: 10px;
-            text-align: left;
-            font-size: 12px;
+        /* ---- Event title ---- */
+        .event-title {
+            text-align: center;
+            font-size: 20px;
             font-weight: bold;
-            color: #333;
-            border: 1px solid #ddd;
+            color: #2a2a2a;
+            margin-bottom: 16px;
         }
 
-        table td {
-            padding: 10px;
-            font-size: 12px;
-            color: #666;
-            border: 1px solid #ddd;
-        }
-
-        table tbody tr:nth-child(even) {
-            background-color: #fafafa;
-        }
-
-        .full-width {
-            grid-column: 1 / -1;
-        }
-
-        .service-details {
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-
-        .financial-summary {
-            margin-left: auto;
-            width: 300px;
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 30px;
-        }
-
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-        }
-
-        .summary-row.total {
-            border-top: 2px solid #333;
-            padding-top: 8px;
+        /* ---- Items table ---- */
+        table.items { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+        table.items th {
+            background: #7a1150;
+            color: #fff;
+            font-size: 10px;
             font-weight: bold;
-            color: #333;
-            font-size: 14px;
+            padding: 8px 6px;
+            text-align: center;
+            border: 1px solid #7a1150;
         }
-
-        .summary-label {
-            color: #666;
+        table.items td {
+            font-size: 10px;
+            color: #444;
+            padding: 8px 6px;
+            text-align: center;
+            border: 1px solid #e2e2e6;
         }
+        table.items tr:nth-child(even) td { background: #faf7f9; }
 
-        .summary-value {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            font-size: 11px;
-            color: #999;
-        }
-
-        .bank-details {
-            background-color: #f5f5f5;
-            padding: 12px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-
-        .bank-details-title {
+        /* ---- Totals (right-aligned via a wrapper table — robust in mPDF and browsers) ---- */
+        .totals-wrap { width: 100%; margin-bottom: 10px; }
+        .totals-wrap > tbody > tr > td { padding: 0; border: none; vertical-align: top; }
+        table.totals { width: 100%; }
+        table.totals td { padding: 5px 4px; font-size: 12px; }
+        table.totals td.label { color: #555; }
+        table.totals td.val { text-align: right; color: #333; }
+        table.totals tr.total td {
+            border-top: 1px solid #cfcfcf;
+            padding-top: 9px;
             font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
+            font-size: 13px;
         }
+        table.totals tr.total td.label,
+        table.totals tr.total td.val { color: #3a9d3a; }
 
-        .bank-details-text {
-            font-size: 11px;
-            color: #666;
-            margin: 2px 0;
-        }
+        /* ---- Terms + footer ---- */
+        .terms { padding-top: 6px; font-size: 10px; }
+        .terms a { color: #2456c1; text-decoration: underline; }
 
-        .page-break {
-            page-break-after: always;
-        }
+        .footer-block { margin-top: 24px; font-size: 10px; color: #7a7a7a; line-height: 1.5; }
+        .footer-block .fn { font-weight: bold; color: #555; }
+        .system-note { margin-top: 8px; font-size: 10px; color: #9a9a9a; }
+        .confidential { margin-top: 10px; text-align: center; font-size: 9px; color: #b3b3b3; }
 
-        .highlight {
-            background-color: #fff3e0;
+        @if (!empty($browser))
+        /* ---- Browser-preview-only chrome (mPDF draws these natively for the PDF) ---- */
+        .watermark { position: absolute; top: 40%; left: 12%; width: 76%; text-align: center; opacity: 0.10; }
+        .watermark img { width: 360px; }
+        .bottom-bar {
+            position: absolute; bottom: 0; left: -34px; width: calc(100% + 68px);
+            background: #2b2b2b; color: #cfcfcf; font-size: 8px; text-align: center; padding: 7px 8px;
         }
+        .bottom-bar .k { color: #8f8f8f; }
+
+        body { background: #e9edf2; padding: 28px 0; }
+        .page {
+            position: relative;
+            width: 794px; min-height: 1123px;
+            margin: 0 auto;
+            padding: 34px 34px 60px;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 4px 22px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+        @endif
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="company-info">
-                <h1>{{ $company['name'] }}</h1>
-                <p>{{ $company['address'] }}</p>
-                <p>{{ $company['phone'] }}</p>
-                <p>{{ $company['taxId'] }}</p>
-                <p>{{ $company['website'] }}</p>
-            </div>
-            <div class="invoice-title">
-                <h2>Invoice</h2>
-                <p><strong>Invoice No.</strong> {{ $invoice_number }}</p>
-                <p><strong>Invoice Date</strong> {{ $invoice_date }}</p>
-            </div>
-        </div>
+<div class="page">
 
-        <!-- Invoice Meta -->
-        <div class="invoice-meta">
-            <div class="meta-item">
-                <strong>Order ID:</strong>
-                {{ $order_id }}
-            </div>
-            <div class="meta-item">
-                <strong>Payment Status:</strong>
-                {{ $payment['status'] }}
-            </div>
-            <div class="meta-item">
-                <strong>Currency:</strong>
-                {{ $financial['currency'] }}
-            </div>
-        </div>
+    @if (!empty($browser) && !empty($logo_gold_src))
+        <div class="watermark"><img src="{{ $logo_gold_src }}" alt=""></div>
+    @endif
 
-        <!-- Client and Service Details -->
-        <div class="content">
-            <!-- Client Information -->
-            <div>
-                <div class="section-title">Client Information</div>
-                <div class="info-group">
-                    <div class="info-row">
-                        <span class="info-label">Client Name:</span>
-                        <span class="info-value">{{ $client['name'] }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Client ID:</span>
-                        <span class="info-value">{{ $client['id'] }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Email:</span>
-                        <span class="info-value">{{ $client['email'] }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Phone:</span>
-                        <span class="info-value">{{ $client['phone'] }}</span>
-                    </div>
+    {{-- Header --}}
+    <table class="header-table">
+        <tr>
+            <td width="90" style="vertical-align:top;">
+                <div class="logo-box">
+                    @if (!empty($logo_white_src))
+                        <img src="{{ $logo_white_src }}" width="48" style="margin-top:20px;" alt="Fannan">
+                    @endif
                 </div>
-            </div>
+            </td>
+            <td align="center" style="vertical-align:middle;">
+                <div class="doc-title">INVOICE</div>
+                <div class="doc-sub">{{ $company['name_short'] }}</div>
+            </td>
+            <td width="90"></td>
+        </tr>
+    </table>
 
-            <!-- Service Information -->
-            <div>
-                <div class="section-title">Service Information</div>
-                <div class="info-group">
-                    <div class="info-row">
-                        <span class="info-label">Artist Name:</span>
-                        <span class="info-value">{{ $service['artist_name'] }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Category:</span>
-                        <span class="info-value">{{ $service['category'] }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Type:</span>
-                        <span class="info-value">{{ $service['type'] }}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Address:</span>
-                        <span class="info-value">{{ $service['address'] }}, {{ $service['address_city'] }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Service Details Table -->
-        <table class="full-width">
-            <thead>
-                <tr>
-                    <th>Header</th>
-                    <th>Information</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Artist Name</td>
-                    <td>{{ $service['artist_name'] }}</td>
-                </tr>
-                <tr>
-                    <td>Category</td>
-                    <td>{{ $service['category'] }}</td>
-                </tr>
-                <tr>
-                    <td>Type</td>
-                    <td>{{ $service['type'] }}</td>
-                </tr>
-                <tr>
-                    <td>Address</td>
-                    <td>{{ $service['address'] }}, {{ $service['address_city'] }} - Near King Khalid Branch Rd</td>
-                </tr>
-                <tr>
-                    <td>Address Description</td>
-                    <td>{{ $service['description'] }}</td>
-                </tr>
-                <tr>
-                    <td>Start Date</td>
-                    <td>{{ $dates['start_date'] }}</td>
-                </tr>
-                <tr>
-                    <td>End Date</td>
-                    <td>{{ $dates['end_date'] }}</td>
-                </tr>
-                <tr>
-                    <td>Start Time</td>
-                    <td>{{ $dates['start_time'] }}</td>
-                </tr>
-                <tr>
-                    <td>End Time</td>
-                    <td>{{ $dates['end_time'] }}</td>
-                </tr>
-                <tr>
-                    <td>Time Period</td>
-                    <td>{{ $dates['time_period'] }}</td>
-                </tr>
-                <tr>
-                    <td>Description</td>
-                    <td>{{ $service['category'] }}</td>
-                </tr>
-                <tr>
-                    <td>Number of Days</td>
-                    <td>{{ $dates['number_of_days'] }}</td>
-                </tr>
-                <tr>
-                    <td>Daily Hours</td>
-                    <td>{{ $dates['daily_hours'] }}</td>
-                </tr>
-                <tr>
-                    <td>Total Hours</td>
-                    <td>{{ $dates['total_hours'] }}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Financial Summary -->
-        <div class="financial-summary">
-            <div class="summary-row">
-                <span class="summary-label">Service Cost:</span>
-                <span class="summary-value">{{ $financial['service_cost'] }} {{ $financial['currency'] }}</span>
-            </div>
-            @if ($financial['discount'] > 0)
-                <div class="summary-row">
-                    <span class="summary-label">Discount:</span>
-                    <span class="summary-value highlight" style="color: #d32f2f;">-{{ $financial['discount'] }} {{ $financial['currency'] }}</span>
-                </div>
-            @endif
-            <div class="summary-row">
-                <span class="summary-label">Tax:</span>
-                <span class="summary-value">{{ $financial['tax'] }} {{ $financial['currency'] }}</span>
-            </div>
-            @if ($financial['vat'] > 0)
-                <div class="summary-row">
-                    <span class="summary-label">VAT:</span>
-                    <span class="summary-value">{{ $financial['vat'] }} {{ $financial['currency'] }}</span>
-                </div>
-            @endif
-            <div class="summary-row total">
-                <span class="summary-label">Total:</span>
-                <span class="summary-value">{{ $financial['total'] }} {{ $financial['currency'] }}</span>
-            </div>
-        </div>
-
-        <!-- Bank Details -->
-        <div class="bank-details">
-            <div class="bank-details-title">{{ $bank_details['bank_name'] }}</div>
-            <div class="bank-details-text">IBAN: {{ $bank_details['iban'] }}</div>
-            <div class="bank-details-text">{{ $bank_details['swift'] }}</div>
-            <div class="bank-details-text">Contact: +20(2) 088 0000 - info@fannanonline.com</div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            <p style="text-align: center; margin-top: 20px;">
-                Thank you for your business! This is an automatically generated invoice.
-            </p>
-        </div>
+    {{-- Invoice meta --}}
+    <div class="meta">
+        <p><strong>Invoice ID:</strong> {{ $invoice_number }}</p>
+        <p><strong>Invoice Date:</strong> {{ $invoice_date }}</p>
+        <p>
+            <strong>Payment Status:</strong>
+            <span class="status-{{ strtolower($payment_status) === 'paid' ? 'paid' : (strtolower($payment_status) === 'failed' ? 'failed' : 'pending') }}">{{ $payment_status }}</span>
+        </p>
     </div>
+
+    {{-- Billed By / Billed To --}}
+    <table class="billed-wrap">
+        <tr>
+            <td>
+                <div class="billed-heading">Billed By</div>
+                <div class="billed-line">{{ $billed_by['company'] }}</div>
+                <div class="billed-line">CR {{ $billed_by['cr'] }}</div>
+                <div class="billed-line">TAX {{ $billed_by['tax'] }}</div>
+                <div class="billed-line">{{ $billed_by['email'] }}</div>
+            </td>
+            <td class="div">
+                <div class="billed-heading">Billed To</div>
+                <div class="billed-line">Client ID: {{ $billed_to['client_id'] }}</div>
+                <div class="billed-line">Name: {{ $billed_to['name'] }}</div>
+                <div class="billed-line">Email: {{ $billed_to['email'] }}</div>
+                <div class="billed-line">Phone: {{ $billed_to['phone'] }}</div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- Event title --}}
+    <div class="event-title">{{ $event_name }}</div>
+
+    {{-- Items --}}
+    <table class="items">
+        <thead>
+            <tr>
+                <th width="13%">Artist-Name</th>
+                <th width="9%">Artist-ID</th>
+                <th width="30%">Address</th>
+                <th width="18%">Description</th>
+                <th width="15%">Start</th>
+                <th width="15%">End</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($items as $item)
+                <tr>
+                    <td>{{ $item['artist_name'] }}</td>
+                    <td>{{ $item['artist_id'] }}</td>
+                    <td>{{ $item['address'] }}</td>
+                    <td>{{ $item['description'] }}</td>
+                    <td>{{ $item['start'] }}</td>
+                    <td>{{ $item['end'] }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="6">No items</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+
+    {{-- Totals --}}
+    <table class="totals-wrap">
+        <tr>
+            <td></td>
+            <td width="290">
+                <table class="totals">
+                    <tr>
+                        <td class="label">SubTotal</td>
+                        <td class="val">{{ $totals['subtotal'] }} {{ $totals['currency'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Discount</td>
+                        <td class="val">{{ $totals['discount'] }} {{ $totals['currency'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Tax</td>
+                        <td class="val">{{ $totals['tax'] }} {{ $totals['currency'] }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">VAT &amp; Payment Fees</td>
+                        <td class="val">{{ $totals['vat_fees'] }} {{ $totals['currency'] }}</td>
+                    </tr>
+                    <tr class="total">
+                        <td class="label">Total Paid</td>
+                        <td class="val">{{ $totals['total_paid'] }} {{ $totals['currency'] }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{-- Terms --}}
+    <div class="terms">
+        <span class="pink">Terms &amp; Conditions:</span>
+        <a href="{{ $company['terms_url'] }}">{{ $company['terms_url'] }}</a>
+    </div>
+
+    {{-- Footer --}}
+    <div class="footer-block">
+        <div class="fn">{{ $company['name_short'] }}</div>
+        <div>{{ $company['hq'] }}</div>
+        <div>{{ $company['phone'] }} | {{ $billed_by['email'] }}</div>
+        <div>CR: {{ $billed_by['cr'] }} | TAX: {{ $billed_by['tax'] }}</div>
+        <div class="system-note">This is a system-generated invoice. No signature required.</div>
+    </div>
+
+    <div class="confidential">
+        The proposed strategies, material, information &amp; ideas submitted by {{ $company['name'] }} for consideration are of a confidential nature
+    </div>
+
+    @if (!empty($browser))
+        <div class="bottom-bar">
+            <span class="k">Hotline</span> {{ $company['hotline'] }}
+            &nbsp;&nbsp;<span class="k">CR</span> {{ str_replace(' ', '', $billed_by['cr']) }}
+            &nbsp;&nbsp;<span class="k">Tax</span> {{ $billed_by['tax'] }}
+            &nbsp;&nbsp;<span class="k">HQ</span> {{ $company['hq_short'] }}
+            &nbsp;&nbsp;{{ $company['website'] }}
+        </div>
+    @endif
+
+</div>
 </body>
 </html>

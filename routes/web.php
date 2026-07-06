@@ -3,12 +3,22 @@
 use App\Http\Controllers\EasyKashController;
 use App\Http\Controllers\API\ArtistController;
 use App\Http\Controllers\API\SettingController;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect('/admin');
 });
+
+// [LOCAL ONLY] Invoice design preview — iterate on the invoice without auth or the mobile app.
+//   /invoice/preview           newest order (or built-in sample data on an empty DB), as HTML
+//   /invoice/preview/{order}   a specific order, as HTML
+//   /invoice/preview?pdf=1     the same, rendered as the real PDF
+// The controller also asserts app()->environment('local'); this guard is a second gate.
+if (app()->environment('local')) {
+    Route::get('invoice/preview/{order?}', [InvoiceController::class, 'preview'])->name('invoice.preview');
+}
 
 
 Route::get('payments/easykash/return', [EasyKashController::class, 'returnRedirect'])->name('easykash.return');
