@@ -2,8 +2,9 @@
 
 namespace App\Http\Resources\Order;
 
-use App\Http\Resources\ArtistResource;
+use App\Enums\OrderStatus;
 use App\Http\Resources\BiddingOrderOfferResource;
+use App\Http\Resources\CounterpartyResource;
 use App\Http\Resources\OrderCategoryResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -17,6 +18,14 @@ class OrderResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // [SECURITY][R2-H3] Expose the counterparty's contact (email/phone/whatsapp) only for a
+        // confirmed engagement — not in every order/list response.
+        $confirmed = (bool) $this->is_paid || in_array($this->status_value, [
+            OrderStatus::ACCEPTED->value,
+            OrderStatus::IN_PAYMENT->value,
+            OrderStatus::COMPLETED->value,
+        ], true);
+
         return [
             'id' => $this->id,
             'client_id' => $this->client_id,
@@ -38,7 +47,7 @@ class OrderResource extends JsonResource
             'status_reason' => $this->status_reason,
             'cost' => $this->cost_value,
             'is_complete' => $this->is_complete,
-            'artist' => new ArtistResource($this->artist),
+            'artist' => new CounterpartyResource($this->artist, $confirmed),
             'categories' => OrderCategoryResource::collection($this->categories),
             'dates' => $this->dates,
             'create_at' => $this->created_at->format('Y/M/d H:i:s A'),

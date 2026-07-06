@@ -2,9 +2,8 @@
 
 namespace App\Http\Resources\Order;
 
-use App\Http\Resources\ArtistResource;
 use App\Http\Resources\BiddingOrderOfferResource;
-use App\Http\Resources\Client\ClientResource;
+use App\Http\Resources\CounterpartyResource;
 use App\Http\Resources\OrderCategoryResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -14,18 +13,24 @@ class BiddingOrderResource extends JsonResource
 
     public function toArray(Request $request): array
     {
+        // [SECURITY][R2-H1] The bidding browse/list is intentionally open to any artist so they can
+        // decide whether to bid; expose the client's PII + exact location ONLY to the order owner or
+        // an already-accepted artist. Everyone else gets city-level, contact-free data.
+        $canSeeDetails = auth()->id() === $this->client_id
+            || $this->biddingOrderArtists->where('artist_id', auth()->id())->where('is_accepted', 1)->isNotEmpty();
+
         return [
             'id' => $this->id,
             'client_id' => $this->client_id,
-            'client' => new ClientResource($this->client),
+            'client' => new CounterpartyResource($this->client, $canSeeDetails),
             'name' => $this->name,
             'number' => $this->number,
             'type' => $this->type,
             'city' => $this->address?->city?->name,
-            'latitude' => $this->address?->latitude,
-            'longitude' => $this->address?->longitude,
-            'address_name' => $this->address?->name,
-            'address_description' => $this->address?->description,
+            'latitude' => $canSeeDetails ? $this->address?->latitude : null,
+            'longitude' => $canSeeDetails ? $this->address?->longitude : null,
+            'address_name' => $canSeeDetails ? $this->address?->name : null,
+            'address_description' => $canSeeDetails ? $this->address?->description : null,
             'description' => $this->description,
             'status' => $this->status_value,
             'status_text' => $this->status_text,

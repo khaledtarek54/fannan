@@ -16,7 +16,10 @@ return [
     |
     */
 
-    'enabled' => env('TELESCOPE_ENABLED', true),
+    // [SECURITY][R2-H4] Default OFF. Telescope's provider is package-auto-discovered, so it boots
+    // in every environment gated only by this flag; defaulting to true meant an env that merely
+    // omitted TELESCOPE_ENABLED recorded login passwords, OTPs and payment payloads in cleartext.
+    'enabled' => env('TELESCOPE_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
