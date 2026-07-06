@@ -152,4 +152,15 @@ return [
     'invalid_amount' => 'مبلغ السحب يتجاوز الرصيد المتوفر',
     'non_complete_profile' => 'الملف الشخصي غير مكتمل',
     'phone_unique' => 'رقم الهاتف موجود من قبل',
+
+    // Invoices / admin
+    'download_invoice' => 'تحميل الفاتورة',
+    'invoices' => 'الفواتير',
+    'invoice' => 'فاتورة',
+    'invoice_number' => 'رقم الفاتورة',
+    'paid' => 'مدفوعة',
+    'unpaid' => 'غير مدفوعة',
+    'payment_status' => 'حالة الدفع',
+    'issued_at' => 'تاريخ الإصدار',
+    'total' => 'الإجمالي',
 ];
