@@ -58,6 +58,9 @@ class User extends Authenticatable implements FilamentUser
     protected $hidden = [
         'password',
         'remember_token',
+        // [SECURITY][R2-H2] Never serialize the Firebase push token — leaking it to other users
+        // enables push-notification spoofing/hijacking.
+        'fcm_token',
     ];
 
     /**

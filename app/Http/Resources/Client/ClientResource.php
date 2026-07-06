@@ -26,8 +26,10 @@ class ClientResource extends JsonResource
             "dob" => Carbon::parse($this->dob)->format('d-M-Y'),
             "gender" => $this->gender,
             "city" => $this->city ?: $this->cityRelation?->name,
-            "vat_number" => $this->name,
-            "cr_number" => $this->name,
+            // [SECURITY][R2-H3] Was a copy-paste bug leaking the name as vat/cr. This resource is
+            // now the client's OWN profile only (counterparty embeds use CounterpartyResource).
+            "vat_number" => $this->vat_number,
+            "cr_number" => $this->cr_number,
             "completed_profile" => (bool)$this->completed_profile,
             "profile" => $this->profile_photo ? Storage::url($this->profile_photo) : "",
             'facebook' => $this->facebook,

@@ -28,12 +28,24 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
             return;
         }
 
-        Telescope::hideRequestParameters(['_token']);
+        // [SECURITY][R2-H4] Scrub credentials / OTP / push token / payment fields so they are never
+        // written to telescope_entries in cleartext (only `_token` was hidden before).
+        Telescope::hideRequestParameters([
+            '_token',
+            'password',
+            'password_confirmation',
+            'verification_code',
+            'fcm_token',
+            'token',
+            'id_token',
+            'access_token',
+        ]);
 
         Telescope::hideRequestHeaders([
             'cookie',
             'x-csrf-token',
             'x-xsrf-token',
+            'authorization',
         ]);
     }
 
