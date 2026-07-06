@@ -114,10 +114,10 @@ class BiddingOrderResource extends Resource
                     ->label(trans('app.city'))
                     ->searchable()
                     ->sortable(),
+                // `subcategories_text` is a computed accessor (Order::getSubcategoriesTextAttribute),
+                // not a DB column — ->searchable()/->sortable() would throw "Unknown column". Display only.
                 Tables\Columns\TextColumn::make('subcategories_text')
-                    ->label(trans('app.categories'))
-                    ->searchable()
-                    ->sortable(),
+                    ->label(trans('app.categories')),
 
             ])
             ->filters([

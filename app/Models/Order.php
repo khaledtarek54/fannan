@@ -144,11 +144,14 @@ class Order extends Model
         return $cost;
     }
 
-    public function getSubcategoriesTextAttribute()
+    public function getSubcategoriesTextAttribute(): string
     {
-        return $this->categories->map(function ($item) {
-            return $item->subcategory?->name . ", ";
-        });
+        // Return a plain comma-separated string (was returning a Collection of "name, " fragments,
+        // which rendered oddly wherever the accessor is displayed, e.g. the admin orders table).
+        return $this->categories
+            ->map(fn ($item) => $item->subcategory?->name)
+            ->filter()
+            ->implode(', ');
     }
 
     public function getImageAttribute()

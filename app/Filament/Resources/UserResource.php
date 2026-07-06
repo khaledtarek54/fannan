@@ -70,9 +70,16 @@ class UserResource extends Resource
                             ->unique(ignoreRecord: true)
                             ->required(),
                         TextInput::make('password')
-                            ->hiddenOn(['view'])
-                            ->minValue(6)
-                            ->required(fn($context) => $context === 'create'),
+                            ->password()
+                            ->revealable()
+                            ->minLength(6) // was ->minValue(6): a numeric rule that never fired on a string
+                            // Do not persist an empty value on edit. User::setPasswordAttribute() always
+                            // Hash::make()s whatever it receives, so a blank submit used to overwrite the
+                            // admin's password with hash('') and lock them out. filled() keeps it out of
+                            // the payload unless a new password was actually typed.
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->required(fn($context) => $context === 'create')
+                            ->hiddenOn(['view']),
                         DatePicker::make('dob')
                             ->required(),
 //                        Select::make('gender')
