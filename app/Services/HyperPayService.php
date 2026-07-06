@@ -97,6 +97,11 @@ class HyperPayService
                         'message' => trans('app.payment_success'),
                         'status_string' => "Paid",
                         'checkoutId' => $request->id,
+                        // [SECURITY][R2-H6] Return the fields the caller needs to bind this success
+                        // to the expected order: the amount HyperPay actually captured and the
+                        // merchantTransactionId ("Transaction".$orderId) of the checkout we verified.
+                        'amount' => $response['amount'] ?? null,
+                        'merchantTransactionId' => $response['merchantTransactionId'] ?? null,
                     ];
                 } elseif (preg_match($retryPattern, $resultCode)) {
                     return [

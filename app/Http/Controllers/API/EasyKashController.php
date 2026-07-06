@@ -8,6 +8,7 @@ use App\Http\Requests\CreatePaymentRequest;
 use App\Models\Order;
 use App\Models\UserTransaction;
 use App\Services\EasyKashService;
+use App\Services\OrderPricingService;
 use App\Services\UserTransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,30 +17,45 @@ class EasyKashController extends Controller
 {
     protected UserTransactionService $transactionService;
     protected EasyKashService $easykash;
+    protected OrderPricingService $pricing;
 
     public function __construct(
         UserTransactionService $transactionService,
-        EasyKashService $easykash
+        EasyKashService $easykash,
+        OrderPricingService $pricing
     ) {
         $this->transactionService = $transactionService;
         $this->easykash = $easykash;
+        $this->pricing = $pricing;
     }
 
     public function createPayment(CreatePaymentRequest $request)
     {
         $validated = $request->validated();
 
-        if (isset($validated['order_id'])) {
-            $order = Order::find($validated['order_id']);
-            if ($order && $order->is_paid) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Order is already paid'
-                ], 400);
-            }
+        /** @var Order|null $order */
+        $order = Order::find($validated['order_id']);
+        abort_if($order === null, 404);
+
+        // [SECURITY][R2-H7] Only the order's own client may create a pay-link for it — previously
+        // any authenticated user could raise an EasyKash link against someone else's order_id.
+        abort_unless((int) $order->client_id === (int) auth()->id(), 403);
+
+        if ($order->is_paid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order is already paid'
+            ], 400);
         }
 
-        // Save to DB using resource response
+        // [SECURITY][R2-C2] Bind the charge to the SERVER-computed order total (VAT + coupon,
+        // same formula as HyperPay) and ignore any client-supplied `amount`, so a pay-zero /
+        // pay-less link cannot be created and later settled by its own valid PAID callback.
+        $validated['amount'] = $this->pricing->breakdown(
+            (float) $order->total_cost,
+            (float) ($order->coupon_amount ?? 0)
+        )['total_cost'];
+
         // Save to DB using Service
         $transaction = $this->transactionService->create($validated);
         // Prepare API payload for EasyKash

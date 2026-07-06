@@ -22,9 +22,15 @@ class Order extends Model
 {
     use HasFactory, HasStatuses, SoftDeletes;
 
+    // [SECURITY][R2-C3] `is_paid`, `coupon_amount` and `updated_budget` are NOT mass-assignable:
+    // is_paid is set only by the payment-confirmation paths (PaymentService / UserTransactionService)
+    // and coupon_amount only by OrderService::checkout — all via direct assignment. Leaving them
+    // fillable let a client POST them into /order/store (or the accept payload) to mint a pre-paid
+    // or mispriced order. `cost` stays fillable because the artist sets it on accept, but the
+    // create() sink strips it (see OrderRepository::create) so it can't be injected at creation.
     protected $fillable = [
         'type', 'name', 'number', 'client_id', 'artist_id', 'address_id',
-        'description', 'cost', 'updated_budget', 'coupon_id', 'coupon_amount', 'is_paid',
+        'description', 'cost', 'coupon_id',
     ];
 
     public function client(): BelongsTo
