@@ -71,7 +71,7 @@ class BiddingOrderResource extends Resource
                             ->label(trans('app.client'))
                             ->searchable()
                             ->required()
-                            ->options(User::client()->get()->pluck('name', 'id')),
+                            ->options(User::client()->pluck('name', 'id')),
                         Select::make('address_id')
                             ->label(trans('app.address'))
                             ->searchable()
@@ -150,7 +150,7 @@ class BiddingOrderResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return Order::query()->where('type', OrderType::BIDDING)
-            ->orderByDesc('id')->with(['biddingOrderArtists.artist', 'client']);
+            ->orderByDesc('id')->with(['biddingOrderArtists.artist', 'client', 'address.city']);
     }
 
     public static function getPages(): array

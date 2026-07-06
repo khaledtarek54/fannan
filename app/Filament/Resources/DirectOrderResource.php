@@ -78,12 +78,12 @@ class DirectOrderResource extends Resource
                             ->label(trans('app.client'))
                             ->searchable()
                             ->required()
-                            ->options(User::client()->get()->pluck('name', 'id')),
+                            ->options(User::client()->pluck('name', 'id')),
                         Select::make('artist_id')
                             ->label(trans('app.artist'))
                             ->searchable()
                             ->required()
-                            ->options(User::artist()->get()->pluck('name', 'id')),
+                            ->options(User::artist()->pluck('name', 'id')),
                         // category_id is form-only (used to filter subcategories); the order stores the
                         // chosen subcategory as an OrderCategory row in CreateDirectOrder. Create-only:
                         // editing an existing order's categories is done via the Categories relation manager.
@@ -246,6 +246,7 @@ class DirectOrderResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return Order::query()->where('type', OrderType::DIRECT->value)
+            ->with(['client', 'artist', 'address.city']) // avoid N+1 on the list's name/city columns
             ->orderByDesc('id');
     }
 

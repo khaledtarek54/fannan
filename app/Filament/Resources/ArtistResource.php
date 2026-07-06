@@ -128,19 +128,20 @@ class ArtistResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable(),
+                Tables\Columns\TextColumn::make('name')->label(trans('app.name'))->searchable(),
                 Tables\Columns\TextColumn::make('email')
-                    ->label('E-Mail')
+                    ->label(trans('app.email'))
                     ->searchable(),
                 PhoneColumn::make('phone')
-                    ->label('Phone')
+                    ->label(trans('app.phone'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('dob')
-                    ->label('Birthdate')->date(),
+                    ->label(trans('app.dob'))->date(),
                 Tables\Columns\TextColumn::make('gender')
+                    ->label(trans('app.gender'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('city.name')
-                    ->label('City')
+                    ->label(trans('app.city'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('platform_fees')
                     ->label(trans('app.setting.platform_fees'))

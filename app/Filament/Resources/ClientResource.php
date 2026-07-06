@@ -113,17 +113,12 @@ class ClientResource extends Resource
         // query (User::withTrashed()->client()) plus the TrashedFilter now drive the list.
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable(),
-                Tables\Columns\TextColumn::make('email')->label('E-Mail')->searchable(),
-                PhoneColumn::make('phone')->label('Phone')->searchable(),
-                Tables\Columns\TextColumn::make('dob')->label('Birthdate')->date(),
-                Tables\Columns\TextColumn::make('gender')->searchable(),
-//                Tables\Columns\SelectColumn::make('gender')->options([
-//                    'male' => 'Male',
-//                    'female' => 'Female',
-//                    'other' => 'Prefer not to tell',
-//                ]),
-                Tables\Columns\TextColumn::make('city.name')->label('City')->searchable(),
+                Tables\Columns\TextColumn::make('name')->label(trans('app.name'))->searchable(),
+                Tables\Columns\TextColumn::make('email')->label(trans('app.email'))->searchable(),
+                PhoneColumn::make('phone')->label(trans('app.phone'))->searchable(),
+                Tables\Columns\TextColumn::make('dob')->label(trans('app.dob'))->date(),
+                Tables\Columns\TextColumn::make('gender')->label(trans('app.gender'))->searchable(),
+                Tables\Columns\TextColumn::make('city.name')->label(trans('app.city'))->searchable(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),

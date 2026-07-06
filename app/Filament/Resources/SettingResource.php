@@ -80,18 +80,6 @@ class SettingResource extends Resource
                             'en' => ['required'],
                             'ar' => ['required'],
                         ]),
-//                    Textarea::make('value_en')
-//                        ->label(trans('app.value_en'))
-//                        ->default(function ($record) {
-//                            return $record ? $record->value_en : '';
-//                        })
-//                        ->required(),
-//                    Textarea::make('value_ar')
-//                        ->label(trans('app.value_ar'))
-//                        ->default(function ($record) {
-//                            return $record ? $record->value_ar : '';
-//                        })
-//                        ->required(),
                 ]),
             ]);
     }
