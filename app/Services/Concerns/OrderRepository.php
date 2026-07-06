@@ -50,6 +50,13 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
      */
     public function create(array $payload): ?Model
     {
+        // [SECURITY][R2-C3] OrderService::store forwards $request->all(), so strip any
+        // payment/pricing columns the client may have injected. These are server-controlled and
+        // set later by accept / checkout / payment confirmation — never at client creation time.
+        unset(
+            $payload['is_paid'], $payload['cost'], $payload['updated_budget'],
+            $payload['coupon_id'], $payload['coupon_amount']
+        );
         $payload['number'] = "D" . parent::getModelNumber();
         $payload['client_id'] = auth()->id();
         /** @var Order $model */

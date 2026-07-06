@@ -11,8 +11,8 @@
 | ID | Finding | Severity | Verified | Fixed |
 |----|---------|----------|----------|-------|
 | R2-C1 | `POST /api/login-social` — social login trusts client-supplied `email`, no provider token check → account takeover | Critical | ✅ | ☑ |
-| R2-C2 | `POST /api/easykash/pay` — charge `amount` taken from the client; callback settles order without checking amount → pay-zero bypass | Critical | ✅ | ☐ |
-| R2-C3 | `POST /api/order/store` — `is_paid`/pricing columns mass-assignable → create a pre-paid order for free | Critical | ✅ | ☐ |
+| R2-C2 | `POST /api/easykash/pay` — charge `amount` taken from the client; callback settles order without checking amount → pay-zero bypass | Critical | ✅ | ☑ |
+| R2-C3 | `POST /api/order/store` — `is_paid`/pricing columns mass-assignable → create a pre-paid order for free | Critical | ✅ | ☑ |
 | R2-C4 | `Model::unguard()` disables mass-assignment protection for **all** models globally | Critical | ✅ | ☑ |
 | R2-C5 | OTP is a 4-digit plaintext code, loose-compared, no expiry/lockout, hardcoded `1234` when `APP_ENV=local` → reset takeover | Critical | ✅ | ☐ |
 | R2-H1 | `POST /api/bidding-order/id` — unscoped read IDOR leaks any client's PII + exact lat/long | High | ✅ | ☐ |
@@ -20,8 +20,8 @@
 | R2-H3 | Counterparty PII (email/phone/VAT/CR) leaked through order/offer resource embeds | High | ✅ | ☐ |
 | R2-H4 | Telescope defaults **enabled** (auto-discovered) with no field scrubbing → records passwords/OTP/payment payloads in prod | High | ✅ | ☐ |
 | R2-H5 | Profile-photo upload has no `mimetypes`/`max` validation, stored on public disk → stored-XSS/abuse | High | ✅ | ☐ |
-| R2-H6 | Paid amount never verified against the order on either rail's confirmation (EasyKash callback + HyperPay status) | High | ✅ | ☐ |
-| R2-H7 | `POST /api/easykash/pay` authenticated but no order-ownership check | High | ✅ | ☐ |
+| R2-H6 | Paid amount never verified against the order on either rail's confirmation (EasyKash callback + HyperPay status) | High | ✅ | ☑ |
+| R2-H7 | `POST /api/easykash/pay` authenticated but no order-ownership check | High | ✅ | ☑ |
 | R2-M1 | `customer_reference` is `rand(100000,999999)` — guessable + collision-prone, no unique constraint | Medium | ✅ | ☐ |
 | R2-M2 | Auth rate limiters keyed by IP only — no per-account ceiling for OTP/password brute force | Medium | ✅ | ☐ |
 | R2-M3 | Coupon > order cost → negative total (no clamp); same coupon reusable across concurrent checkouts | Medium | ✅ | ☐ |
@@ -52,12 +52,14 @@
 The EasyKash amount comes straight from the request body (`"amount" => "required|numeric"` — no minimum, never compared to `Order->total_cost`), is stored verbatim by `UserTransactionService::create()`, and sent to EasyKash. On callback, `updateFromCallback()` sets `is_paid=true` on the transaction **and the order** whenever `status === "PAID"`, storing the paid `Amount` but **never validating it against the order total**.
 **Impact:** `POST /api/easykash/pay {order_id:<mine>, amount:1, …}` creates a 1-EGP (or 0) pay-link; the resulting *legitimately-signed* PAID callback fully settles the order. The HMAC check does not help — EasyKash signs the tiny amount it actually processed. Direct financial loss. (The HyperPay *charge* is server-priced and safe; the gap on that rail is only the confirmation step — see R2-H6.)
 **Fix:** Compute the charge server-side from the order (as HyperPay's `PaymentService::checkout` already does), and in `updateFromCallback` require `(float)$data->Amount >= (float)$order->total_cost` before flipping `is_paid`.
+**Fixed (`security/round2-criticals`):** ☑ `EasyKashController::createPayment` now loads the order, and after the ownership check (R2-H7) **overwrites** `amount` with the server-computed order total (`OrderPricingService::breakdown(order->total_cost, coupon_amount)`, same formula as HyperPay) — the client-supplied `amount` is ignored. `UserTransactionService::updateFromCallback` only flips `is_paid` when `(float)$data->Amount >= (float)$payment->amount` (the server-bound charge), else it logs an underpayment and leaves the order unsettled. Covered by `tests/Feature/PaymentIntegrityTest.php` (pay-1 charges the full total; underpaid callback does not settle).
 
 ### R2-C3 — Mass-assignable `is_paid` on order creation → free orders ✅
 **Location:** `app/Services/OrderService.php:67-70` → `app/Services/Concerns/OrderRepository.php:51-59` → `Order::create()`. `Order` `$fillable` includes `is_paid`, `cost`, `updated_budget`, `coupon_amount` (`app/Models/Order.php:25-27`). `StoreOrderRequest` (`app/Http/Requests/Order/StoreOrderRequest.php`) does not strip unknown keys.
 `store()` passes `$request->all()` into `orderRepository->create($payload)`, which forces only `number` and `client_id` before `Order::create($payload)`. Any other request key with a matching fillable column is written.
 **Impact:** `POST /api/order/store` with the required valid fields plus `"is_paid": true` creates an order already marked paid (no payment). `cost`/`coupon_amount`/`updated_budget` can likewise be tampered to distort pricing. Reachable by any client. (Compounded by R2-C4, but exploitable even without it because these columns are in `$fillable`.)
 **Fix:** Remove `is_paid` and pricing columns from `Order::$fillable`; build the create payload from an explicit server-side whitelist.
+**Fixed (`security/round2-criticals`):** ☑ Removed `is_paid`, `coupon_amount`, `updated_budget` from `Order::$fillable` (they are written only by the payment/checkout paths via direct assignment). `cost` stays fillable because the artist sets it on `acceptOrder`, but `OrderRepository::create` now strips `is_paid`/`cost`/`coupon_id`/`coupon_amount`/`updated_budget` from the client payload (`OrderService::store` forwards `$request->all()`). The one legitimate mass-assign of `is_paid` (`UserTransactionService`) was switched to direct assignment. Covered by `tests/Feature/PaymentIntegrityTest.php` + `MassAssignmentGuardTest`.
 
 ### R2-C4 — `Model::unguard()` disables mass-assignment protection globally ✅
 **Location:** `app/Providers/AppServiceProvider.php:80` — `Model::unguard();` runs unconditionally in `boot()`.
@@ -105,11 +107,13 @@ Every model's `$fillable`/`$guarded` becomes inert app-wide. This is the framewo
 **Location:** EasyKash: `app/Services/UserTransactionService.php:44-56` (see R2-C2). HyperPay: `app/Services/PaymentService.php:107-129` → `app/Services/HyperPayService.php:62-153` — the status confirmation reads only the result **code**; it never compares HyperPay's returned amount / `merchantTransactionId` to the stored order before setting `is_paid=true`, and has no idempotency guard.
 **Impact:** Confirmation trusts a success code without binding it to the expected amount + order — the weakest link on both rails, and the mechanism that turns R2-C2 into a settled order.
 **Fix:** Before marking paid, assert returned `amount == stored amount` and `merchantTransactionId == "Transaction".$order_id`; short-circuit if already complete (idempotency).
+**Fixed (`security/round2-criticals`):** ☑ EasyKash: see R2-C2 (amount bound to the order in `updateFromCallback`; the existing `is_paid` idempotency guard is kept). HyperPay: `HyperPayService::getPaymentStatus` now returns the captured `amount` + `merchantTransactionId`, and `PaymentService::getPaymentStatus` (a) short-circuits when the transaction is already `is_complete` (idempotency), (b) requires `merchantTransactionId === "Transaction".$order_id` — so a genuine success for a cheap/unrelated checkout cannot be re-pointed at another order's `checkout_id` — and (c) requires the captured amount to cover the charge (1-unit tolerance for the gateway's integer rounding). Covered by `tests/Feature/PaymentIntegrityTest.php` (mismatched merchantTransactionId does not settle; matching one does).
 
 ### R2-H7 — `POST /api/easykash/pay` lacks order-ownership check ✅
 **Location:** `app/Http/Controllers/API/EasyKashController.php:28-57`, `app/Services/UserTransactionService.php:12-25`. Round 1 M6 added `auth:api` + `throttle:payment` (good) but never verified `order_id` belongs to `auth()->id()`.
 **Impact:** An authenticated user creates EasyKash pay-links against another user's `order_id`. Lower impact alone, but combined with R2-C2 it lets an attacker drive another user's order to "paid" for a trivial amount.
 **Fix:** `abort_unless($order->client_id === auth()->id(), 403)` before creating the transaction.
+**Fixed (`security/round2-criticals`):** ☑ `EasyKashController::createPayment` now `abort_if($order === null, 404)` then `abort_unless((int)$order->client_id === (int)auth()->id(), 403)` before any transaction is created. Covered by `tests/Feature/PaymentIntegrityTest.php` (non-owner → 403, no transaction row).
 
 ---
 
