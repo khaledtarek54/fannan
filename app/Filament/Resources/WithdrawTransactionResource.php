@@ -51,21 +51,24 @@ class WithdrawTransactionResource extends Resource
                     ->columns(2)
                     ->schema([
                         Select::make('user_id')
-                            ->options(User::query()->artist()->with('transactions')->get()->pluck('name', 'id')->toArray())
+                            ->options(User::query()->artist()->pluck('name', 'id')->toArray())
                             ->searchable()
                             ->label(trans('app.artist'))
+                            ->required() // without it, CreateWithdrawTransaction does User::find(null) -> null -> 500
                             ->reactive()
                             ->afterStateUpdated(function (callable $set, $state) {
                                 $user = User::find($state);
-                                $set('available_amount', ($user->total_income - $user->total_withdraw));
+                                $set('available_amount', $user ? ($user->total_income - $user->total_withdraw) : null);
                             }),
                         TextInput::make('available_amount')
                             ->label(trans('app.available_amount'))
                             ->disabled()
-                            ->suffix('SAR')
-                            ->dehydrateStateUsing(fn($state) => ($state)),
+                            ->dehydrated(false) // display-only helper; never persist it (not a column)
+                            ->suffix('SAR'),
                         TextInput::make('amount')
                             ->label(trans('app.amount'))
+                            ->numeric()
+                            ->minValue(1)
                             ->suffix('SAR')
                             ->required(),
                     ])

@@ -161,10 +161,11 @@ class DirectOrderResource extends Resource
                     ->suffix(' SAR')
                     ->sortable(),
 
+                // `status_value` is a computed accessor (Order::getStatusValueAttribute), NOT a DB
+                // column, so ->searchable()/->sortable() emit `WHERE/ORDER BY status_value` and throw
+                // "Unknown column 'status_value'". It can be displayed but not sorted/searched at SQL level.
                 BadgeColumn::make('status_value')
                     ->label(trans('app.status'))
-                    ->searchable()
-                    ->sortable()
                     ->colors([
                         'danger' => OrderStatus::REJECTED->value,
                         'warning' => OrderStatus::ARTIST_PENDING->value,

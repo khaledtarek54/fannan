@@ -118,10 +118,16 @@ class CompletedSupportResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        // One row per user (latest completed ticket). See SupportResource: groupBy + select *
+        // breaks under ONLY_FULL_GROUP_BY, so pick the MAX(id) per user via a subquery instead.
         return Support::query()
-            ->whereNull('model_id')
-            ->where('is_complete', 1)
-            ->groupBy('user_id')
+            ->whereIn('id', function ($q) {
+                $q->selectRaw('MAX(id)')
+                    ->from('supports')
+                    ->whereNull('model_id')
+                    ->where('is_complete', 1)
+                    ->groupBy('user_id');
+            })
             ->with('user.supports')
             ->orderByDesc('id');
     }

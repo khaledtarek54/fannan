@@ -93,7 +93,12 @@ class SupportResource extends Resource
                     ->label(trans('app.mark_as_complete'))
                     ->requiresConfirmation()
                     ->action(function ($record) {
-                        Support::query()->where('is_complete', 0)
+                        // Close only THIS user's open thread. The list is grouped by user_id, so a row
+                        // represents one user's conversation. The previous code closed EVERY open ticket
+                        // platform-wide (it ignored $record) — a one-click mass-close of all support.
+                        Support::query()
+                            ->where('user_id', $record->user_id)
+                            ->where('is_complete', 0)
                             ->update(['is_complete' => 1]);
                     }),
                 Action::make('view')
@@ -144,10 +149,17 @@ class SupportResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        // One row per user (latest open ticket). `groupBy('user_id')` with an implicit `select *`
+        // throws under MySQL ONLY_FULL_GROUP_BY (the default on MySQL >= 5.7 / MariaDB, incl. the
+        // production host). Selecting the MAX(id) per user inside a subquery keeps the aggregate
+        // isolated, so the outer `select *` stays valid everywhere.
         return Support::query()
-//            ->whereNull('model_id')
-            ->where('is_complete', 0)
-            ->groupBy('user_id')
+            ->whereIn('id', function ($q) {
+                $q->selectRaw('MAX(id)')
+                    ->from('supports')
+                    ->where('is_complete', 0)
+                    ->groupBy('user_id');
+            })
             ->with('user.activeSupport')
             ->orderByDesc('id');
     }
