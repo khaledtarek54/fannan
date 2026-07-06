@@ -166,4 +166,24 @@ return [
     'issued_at' => 'Issued at',
     'total' => 'Total',
 
+    // New resources (ratings, transactions, cities, chats, notifications)
+    'income' => 'Income',
+    'withdraw' => 'Withdraw',
+    'ratings' => 'Ratings',
+    'rating' => 'Rating',
+    'reviews' => 'Reviews',
+    'cities' => 'Cities',
+    'chats' => 'Chats',
+    'chat' => 'Chat',
+    'notifications' => 'Notifications',
+    'notification' => 'Notification',
+    'transactions_ledger' => 'Transactions',
+    'stars' => 'Stars',
+    'message' => 'Message',
+    'sender' => 'From',
+    'receiver' => 'To',
+    'read' => 'Read',
+    'title' => 'Title',
+    'body' => 'Body',
+
 ];
