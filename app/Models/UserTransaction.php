@@ -25,6 +25,15 @@ class UserTransaction extends Model
         'mobile',
     ];
 
+    // [SECURITY][R2-L5] Keep the raw gateway payload + payer PII out of any accidental
+    // serialization (e.g. a controller returning the model directly).
+    protected $hidden = [
+        'callback_payload',
+        'easykash_ref',
+        'email',
+        'mobile',
+    ];
+
     public function order()
     {
         return $this->belongsTo(Order::class);

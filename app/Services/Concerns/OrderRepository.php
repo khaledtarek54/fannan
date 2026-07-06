@@ -141,7 +141,9 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
         if ($coupon->type->value == CouponType::PERCENTAGE->value) {
             $discount = ($cost * $coupon->amount) / 100;
         }
-        return (float)$discount;
+        // [SECURITY][R2-M3] Never discount more than the order cost — a fixed coupon larger than
+        // the order would otherwise be stored as coupon_amount and drive the total negative.
+        return (float) max(0, min($discount, $cost));
     }
 
     /**

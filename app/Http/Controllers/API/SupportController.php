@@ -29,7 +29,8 @@ class SupportController extends BaseController
     {
         $support = $this->supportService->create($storeSupportRequest->all());
         return response()->json([
-            'data' => $support,
+            // [SECURITY][R2-L5] Return the shaped resource, not the raw Eloquent model.
+            'data' => new SupportResource($support),
             'status' => true,
         ]);
     }

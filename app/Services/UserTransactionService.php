@@ -12,7 +12,11 @@ class UserTransactionService
      */
     public function create(array $validated): UserTransaction
     {
-        $customerReference = rand(100000, 999999);
+        // [SECURITY][R2-M1] Use the CSPRNG over a large space instead of rand(100000,999999) —
+        // harder to guess/enumerate. The `customer_reference` column already has a UNIQUE index
+        // (2025_12_10 migration), so the negligible chance of a collision fails the insert rather
+        // than settling the wrong transaction.
+        $customerReference = (string) random_int(100000000000, 999999999999);
 
         return UserTransaction::create([
             'order_id'           => $validated['order_id'] ?? null,
@@ -88,6 +92,9 @@ class UserTransactionService
      */
     public function getTransactionStatus(string $customerReference): ?UserTransaction
     {
-        return UserTransaction::where('order_id', $customerReference)->latest()->first();
+        // [SECURITY/CORRECTNESS][R2-M4] Look up by customer_reference (the value passed in) — this
+        // was querying `order_id` with a customer_reference, returning the newest transaction for
+        // whatever order happened to share that id rather than the one asked about.
+        return UserTransaction::where('customer_reference', $customerReference)->latest()->first();
     }
 }
