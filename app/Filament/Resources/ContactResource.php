@@ -44,6 +44,14 @@ class ContactResource extends Resource
         return __('front.contact');
     }
 
+    // Contact submissions arrive from the public website — they are inbound-only. The create/edit
+    // forms were blank (all fields ->visibleOn('view')); disable creation and expose read + delete
+    // only. The View action renders the fields in a modal from the form() below.
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -102,8 +110,7 @@ class ContactResource extends Resource
     {
         return [
             'index' => Pages\ListContacts::route('/'),
-            'create' => Pages\CreateContact::route('/create'),
-            'edit' => Pages\EditContact::route('/{record}/edit'),
+            // create/edit intentionally omitted — inbound submissions are read + delete only.
         ];
     }
 }

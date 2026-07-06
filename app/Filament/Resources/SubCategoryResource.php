@@ -23,9 +23,24 @@ class SubCategoryResource extends Resource
 
     public static function form(Form $form): Form
     {
+        // Subcategories are normally managed via the Category resource's repeater, but this resource
+        // is still reachable by URL, so give it a working form instead of a blank one. `name` is
+        // translatable (Spatie), edited with the same en/ar widget CategoryResource uses.
         return $form
             ->schema([
-                //
+                Forms\Components\Section::make()->columns(2)->schema([
+                    Forms\Components\Select::make('category_id')
+                        ->label(trans('app.category'))
+                        ->relationship('category', 'name')
+                        ->searchable()
+                        ->required(),
+                    Forms\Components\TextInput::make('name')
+                        ->label(trans('app.name'))
+                        ->translatable(true, ['ar' => trans('app.name_ar'), 'en' => trans('app.name_en')], [
+                            'en' => ['required'],
+                            'ar' => ['required'],
+                        ]),
+                ]),
             ]);
     }
 
