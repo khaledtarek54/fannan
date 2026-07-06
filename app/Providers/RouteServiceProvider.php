@@ -32,7 +32,10 @@ class RouteServiceProvider extends ServiceProvider
         // shared browsing pool, and vice-versa (M11). Tuned so legitimate login/OTP + payment
         // flows and single-IP dev testing aren't throttled.
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(30)->by($request->ip());
+            // [SECURITY][R2-M2] Key by phone+IP (was IP only) so a single account can't be
+            // brute-forced from rotating IPs without also hitting a per-account ceiling. The strong
+            // guarantee is the per-code TTL + attempt lockout (R2-C5); this is defence in depth.
+            return Limit::perMinute(30)->by(($request->input('phone') ?? '') . '|' . $request->ip());
         });
         RateLimiter::for('payment', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());

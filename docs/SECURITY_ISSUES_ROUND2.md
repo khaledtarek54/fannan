@@ -14,7 +14,7 @@
 | R2-C2 | `POST /api/easykash/pay` — charge `amount` taken from the client; callback settles order without checking amount → pay-zero bypass | Critical | ✅ | ☑ |
 | R2-C3 | `POST /api/order/store` — `is_paid`/pricing columns mass-assignable → create a pre-paid order for free | Critical | ✅ | ☑ |
 | R2-C4 | `Model::unguard()` disables mass-assignment protection for **all** models globally | Critical | ✅ | ☑ |
-| R2-C5 | OTP is a 4-digit plaintext code, loose-compared, no expiry/lockout, hardcoded `1234` when `APP_ENV=local` → reset takeover | Critical | ✅ | ☐ |
+| R2-C5 | OTP is a 4-digit plaintext code, loose-compared, no expiry/lockout, hardcoded `1234` when `APP_ENV=local` → reset takeover | Critical | ✅ | ☑ |
 | R2-H1 | `POST /api/bidding-order/id` — unscoped read IDOR leaks any client's PII + exact lat/long | High | ✅ | ☐ |
 | R2-H2 | `fcm_token` returned to other users via `UserResource` embedded in offer listings → push hijacking | High | ✅ | ☐ |
 | R2-H3 | Counterparty PII (email/phone/VAT/CR) leaked through order/offer resource embeds | High | ✅ | ☐ |
@@ -23,11 +23,11 @@
 | R2-H6 | Paid amount never verified against the order on either rail's confirmation (EasyKash callback + HyperPay status) | High | ✅ | ☑ |
 | R2-H7 | `POST /api/easykash/pay` authenticated but no order-ownership check | High | ✅ | ☑ |
 | R2-M1 | `customer_reference` is `rand(100000,999999)` — guessable + collision-prone, no unique constraint | Medium | ✅ | ☐ |
-| R2-M2 | Auth rate limiters keyed by IP only — no per-account ceiling for OTP/password brute force | Medium | ✅ | ☐ |
+| R2-M2 | Auth rate limiters keyed by IP only — no per-account ceiling for OTP/password brute force | Medium | ✅ | ☑ |
 | R2-M3 | Coupon > order cost → negative total (no clamp); same coupon reusable across concurrent checkouts | Medium | ✅ | ☐ |
 | R2-M4 | `getTransactionStatus()` queries `order_id` with a `customer_reference` value — wrong column | Medium | ✅ | ☐ |
 | R2-M5 | `POST /api/check-phone-exists` — unauthenticated account-enumeration oracle | Medium | ✅ | ☐ |
-| R2-M6 | Passport tokens unscoped, ~1-year lived, not rotated on password reset | Medium | ✅ | ☐ |
+| R2-M6 | Passport tokens unscoped, ~1-year lived, not rotated on password reset | Medium | ✅ | ☑ |
 | R2-L1 | Old **RCE route committed to git** in `routes/api.php.bak-*` (+ `RouteServiceProvider.php.bak-*`) | Low | ✅ | ☐ |
 | R2-L2 | Dead code with latent IDORs: `OrderOfferController` (unrouted), `support/delete` route | Low | ✅ | ☐ |
 | R2-L3 | `public/default.php` / `default.php.old.php` leftover placeholder files in web root | Low | ✅ | ☐ |
@@ -73,6 +73,7 @@ Every model's `$fillable`/`$guarded` becomes inert app-wide. This is the framewo
 `createVerificationCode()` returns a hardcoded **`1234`** when `config('app.env') === "local"`, else a 4-digit `rand(0,9999)` (10k values), stored plaintext in `users.verification_code`, never expiring, only overwritten on register/resend. Password reset is gated solely on this code; there is no per-account attempt lockout — only 30/min-per-IP (R2-M2).
 **Impact:** 10,000 codes ÷ 30/min ≈ 5.5 h single-IP (minutes distributed) to brute any account's code → `updatePassword` returns a token = takeover. If a prod node ever runs `APP_ENV=local`, every OTP is `1234`.
 **Fix:** 6-digit `random_int`, stored hashed with a short TTL, per-account attempt lockout + rotation on failure; remove the static `1234` branch.
+**Fixed (`security/round2-criticals`):** ☑ Removed the `1234` backdoor and replaced `rand()` with `random_int()` in `Controller::createVerificationCode()`. New `User::freshVerificationCode()` issues the code with a **10-min TTL** (`verification_code_expires_at`) and resets an attempt counter; `User::verifyCode()` fails closed on unset/expired/over-limit codes, counts each wrong guess (timing-safe compare) and **burns the code after 5 attempts** — so the 4-digit space is no longer brute-forceable. Wired through register / resend / `checkVerificationCode` / `updatePassword` / `deleteAccount`; success consumes the code (single-use). New columns via migration `2026_07_06_000001_add_otp_hardening_to_users_table`. **Decision (owner):** kept the code **plaintext** and **4-digit** — hashing was skipped because it's unconfirmed whether an external SMS gateway reads the column, and 4→6 digits needs a mobile-app change; the TTL+lockout already makes brute-force infeasible. Covered by `tests/Feature/OtpSecurityTest.php` (+ updated PasswordReset/AccountDeletion tests).
 
 ---
 
@@ -126,6 +127,7 @@ Every model's `$fillable`/`$guarded` becomes inert app-wide. This is the framewo
 ### R2-M2 — Auth rate limiters keyed by IP only ✅
 `app/Providers/RouteServiceProvider.php:34-36` — `auth` limiter is `Limit::perMinute(30)->by($request->ip())`, with no per-phone/per-account dimension. One attacker rotating IPs (or a botnet) can brute a single account's OTP/password without hitting a per-account ceiling. The named limiters *do* exist and cover login/OTP (Round 1 M11 structure holds) — the keying is the gap. 30/min is also generous given R2-C5's 10k-code space.
 **Fix:** Add a per-account key (`->by($request->input('phone').'|'.$request->ip())`) and lower the OTP ceiling; add account lockout on repeated failures.
+**Fixed (`security/round2-criticals`):** ☑ The `auth` limiter is now keyed by `phone.'|'.ip` (was IP only), so a single account can't be brute-forced from rotating IPs without hitting a per-account+IP ceiling. The decisive control is the per-code TTL + 5-attempt lockout added in R2-C5 (which bounds guesses per code regardless of source IP); this keying is defence in depth. 30/min kept so legitimate login/OTP flows aren't throttled.
 
 ### R2-M3 — Coupon over-discount and cross-order reuse ✅
 `app/Services/Concerns/OrderRepository.php:127-138` (`calculateCouponAmount` for FIXED returns `$coupon->amount` uncapped) + `app/Services/OrderPricingService.php:25-41` (`total = subtotal + vat`, no `max(0, …)`) → a fixed coupon larger than the order yields a **negative total**. Separately, single-use is only recorded on completion (`consumeOrderCoupon`, `OrderService.php:264-276`), so the same coupon can be applied to many concurrent checkouts before one completes; no global redemption cap; `ValidCoupon` checks only the date window.
@@ -142,6 +144,7 @@ Every model's `$fillable`/`$guarded` becomes inert app-wide. This is the framewo
 ### R2-M6 — Passport tokens unscoped / long-lived / not rotated ✅
 `createToken('authToken')->accessToken` (register/login/social/reset) issues unscoped personal-access tokens; no `tokensExpireIn`/`personalAccessTokensExpireIn` is configured (Passport default ~1 year), and tokens are not revoked on password reset — so an attacker's token from R2-C1/C5 persists.
 **Fix:** Set token TTLs, scope tokens, and revoke existing tokens on password reset.
+**Fixed (`security/round2-criticals`):** ☑ `AuthServiceProvider::boot()` now sets `Passport::personalAccessTokensExpireIn/tokensExpireIn(1 year)` (+refresh 2y) — tokens were previously non-expiring. `UserRepository::updatePassword()` revokes the user's existing tokens (`$user->tokens()->delete()`) before issuing a new one, so a token obtained via a prior compromise or the R2-C1/C5 bypass stops working the moment the password changes. **Decision (owner):** TTL kept **long (~1 year)** because the mobile client has no refresh-token flow (a short TTL would force periodic re-login); scoping was left as-is. Covered by `tests/Feature/OtpSecurityTest.php` (old token row is gone after reset). *Note: absolute-expiry is anchored at app boot (Passport quirk); frequent redeploys reset the window.*
 
 ---
 

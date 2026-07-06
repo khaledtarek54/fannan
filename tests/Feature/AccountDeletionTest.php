@@ -16,10 +16,15 @@ class AccountDeletionTest extends TestCase
 
     private function makeUser(): User
     {
-        return User::factory()->create([
-            'phone' => '966500000009',
+        $user = User::factory()->create(['phone' => '966500000009']);
+        // [R2-C5] The code now needs a live TTL window to be accepted.
+        $user->forceFill([
             'verification_code' => 4321,
-        ]);
+            'verification_code_expires_at' => now()->addMinutes(10),
+            'verification_code_attempts' => 0,
+        ])->save();
+
+        return $user;
     }
 
     public function test_deletion_is_rejected_without_a_code(): void

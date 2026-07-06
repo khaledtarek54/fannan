@@ -29,6 +29,11 @@ class User extends Authenticatable implements FilamentUser
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasStatuses;
 
     protected $table = "users";
+
+    /** [SECURITY][R2-C5] Phone-verification (OTP) hardening knobs. */
+    public const OTP_TTL_MINUTES = 10;
+    public const OTP_MAX_ATTEMPTS = 5;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -62,6 +67,7 @@ class User extends Authenticatable implements FilamentUser
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_admin' => 'boolean',
+        'verification_code_expires_at' => 'datetime',
     ];
 
     /**
@@ -78,6 +84,61 @@ class User extends Authenticatable implements FilamentUser
         // true for EVERY authenticated user (any client/artist could reach /admin and read/write
         // all data). `is_admin` is intentionally NOT mass-assignable. See docs/SECURITY_ISSUES.md A1.
         return (bool) $this->is_admin;
+    }
+
+    /**
+     * [SECURITY][R2-C5] Issue a fresh 4-digit phone-verification code with a short TTL and a
+     * reset attempt counter. Uses random_int (CSPRNG) instead of rand(), and there is no static
+     * "1234" backdoor. Sets the attributes but does NOT persist — the caller saves. Returns the
+     * plaintext code so it can be delivered.
+     */
+    public function freshVerificationCode(): int
+    {
+        $code = random_int(1000, 9999);
+        $this->verification_code = $code;
+        $this->verification_code_expires_at = now()->addMinutes(self::OTP_TTL_MINUTES);
+        $this->verification_code_attempts = 0;
+        return $code;
+    }
+
+    /**
+     * [SECURITY][R2-C5] Verify a supplied phone code. Fails closed when the code is unset,
+     * expired, or the per-account attempt ceiling has been reached. Each wrong guess is counted
+     * and, once the ceiling is hit, the code is burned so a new one must be requested — which is
+     * what makes the small 4-digit space infeasible to brute-force. Persists attempt changes.
+     */
+    public function verifyCode($input): bool
+    {
+        if (
+            $this->verification_code === null
+            || $this->verification_code_expires_at === null
+            || now()->greaterThan($this->verification_code_expires_at)
+            || (int) $this->verification_code_attempts >= self::OTP_MAX_ATTEMPTS
+        ) {
+            return false;
+        }
+
+        if ($input !== null && $input !== '' && hash_equals((string) $this->verification_code, (string) $input)) {
+            return true;
+        }
+
+        $this->verification_code_attempts = (int) $this->verification_code_attempts + 1;
+        if ((int) $this->verification_code_attempts >= self::OTP_MAX_ATTEMPTS) {
+            $this->verification_code = null;
+            $this->verification_code_expires_at = null;
+        }
+        $this->save();
+
+        return false;
+    }
+
+    /** [SECURITY][R2-C5] Consume a single-use code after a successful verification. */
+    public function clearVerificationCode(): void
+    {
+        $this->verification_code = null;
+        $this->verification_code_expires_at = null;
+        $this->verification_code_attempts = 0;
+        $this->save();
     }
 
     public function userCategories(): HasMany
