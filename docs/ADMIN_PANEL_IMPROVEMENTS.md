@@ -4,8 +4,45 @@
 > error out or "look empty / not found", plus the missing management screens and dashboard
 > work. Companion to [admin-panel.md](admin-panel.md) (which documents the *current* state).
 >
-> **Status:** proposed / not yet implemented. Author: engineering review, 2026‑07‑06.
+> **Status:** IMPLEMENTED on `feature/filament-admin-improvements` (see status below).
 > Every item cites `file:line` and gives a concrete fix.
+
+---
+
+## Implementation status (feature/filament-admin-improvements)
+
+Delivered in 7 committed phases (all verified: 24 resources + 3 widgets boot clean, invoice
+renders a real PDF, currency switch works, admin order-create produces a valid order):
+
+- **Phase 1 (P0):** §2.1 status_value, §2.2 subcategories_text (+accessor), §2.3 support
+  mark-complete, §2.4 groupBy→subquery, §3.1 admin password wipe, §3.2 withdrawal form.
+- **Phase 2 (P1 forms):** §3.3 order create (now builds category+date rows+status),
+  §3.4 ArtistGallery (moderation-only), §3.5 SubCategory form, §3.6 Contact (read-only),
+  §3.7 Client trashed filter, **plus** the DirectOrder city filter (see correction below).
+- **Phase 3:** configurable display currency (`config/fannan.php` + `APP_CURRENCY`, helpers
+  `currency_code()`/`money()`), default **EGP**.
+- **Phase 4:** `InvoiceService` extracted; controller delegates; `DownloadInvoiceAction` on
+  DirectOrder/Bidding; read-only `InvoiceResource`.
+- **Phase 5:** `PlatformStatsWidget`, `OrdersChartWidget`, fixed `UserWidget` (SQL counts).
+- **Phase 6:** new resources — Rating, Transaction ledger, City, Notification (read-only),
+  Chat (read-only), Coupon usage relation manager.
+- **Phase 7:** N+1 eager-loads + `->pluck()`, nav groups + distinct icons for Address/Category,
+  UserCategories FK Select, SettingResource dead-code removal, i18n labels (en/ar).
+
+**Corrections discovered while implementing (this doc's earlier assumptions):**
+- `orders` has **no `city_id`** column — it was dropped in
+  `2024_08_19_add_address_id_to_orders_table` (city is via `address`). So the existing
+  DirectOrder `city_id` filter was *also* broken; fixed to filter through the address relation.
+- §3.2 withdrawals: the create page already set `type` and validated balance — the real gaps
+  were a missing `required` on `user_id` (→ `find(null)` 500) and no numeric/min on `amount`.
+
+**Deferred (documented, not shipped):**
+- **§8 RBAC** — per user's choice; sensitive-action gating is a no-op with a single admin role.
+- **§5.3 broadcast push** — `PushNotification` carries no payload and the `Notification` model
+  treats title/body as translation keys; needs rework + Firebase creds to test. Shipped a
+  read-only `NotificationResource` instead.
+- **Currency:** default set to EGP to preserve the live invoice; set `APP_CURRENCY=SAR` for KSA.
+  True per-order multi-currency needs an `orders.currency` column.
 
 ---
 
