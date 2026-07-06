@@ -77,8 +77,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Model::unguard();
-
+        // [SECURITY][R2-C4] Model::unguard() was REMOVED. It disabled mass-assignment protection
+        // for EVERY model app-wide, making each model's $fillable inert (Order.is_paid,
+        // User.is_admin/role/wallet, UserTransaction.is_paid/status, Setting.value, …). Each model
+        // now enforces its own $fillable again. See docs/SECURITY_ISSUES_ROUND2.md R2-C4.
         BiddingOrderArtist::observe(UpdateBiddingOrderStatus::class);
 
 
