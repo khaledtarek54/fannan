@@ -27,4 +27,7 @@ return [
     'vat_number_required' => 'VAT Number is required',
     'cr_number_required' => 'CR Number is required',
     'block_account' => 'The account has been blocked ',
+    'email_not_registered' => 'This email is not registered.',
+    'social_token_required' => 'A social login token is required.',
+    'invalid_social_token' => 'Invalid or expired social login token.',
 ];

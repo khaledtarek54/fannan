@@ -6,11 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Notifications\SendOTPNotification;
+use App\Services\FirebaseAuthService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class UserRepository
 {
+    public function __construct(private readonly FirebaseAuthService $firebaseAuth)
+    {
+    }
+
     public static function getUserByPhone($phone)
     {
         return User::where('phone', $phone)->first();
@@ -72,7 +77,26 @@ class UserRepository
     public function socialLogin(array $payload)
     {
         $data = new \stdClass();
-        $user = User::withTrashed()->where('email', $payload['email'])->first();
+
+        // [SECURITY][R2-C1] Resolve the account from the Firebase-VERIFIED email, never from a
+        // client-supplied email. Previously this trusted `payload['email']` and handed back a
+        // Passport token for whatever account was named — a full authentication bypass.
+        $email = $this->firebaseAuth->verifiedEmail($payload['id_token'] ?? null);
+
+        if (!$email) {
+            $data->status = false;
+            $data->message = trans('auth.invalid_social_token');
+            return $data;
+        }
+
+        $user = User::withTrashed()->where('email', $email)->first();
+
+        // Login-only: a valid token whose email has no account is rejected (no auto-registration).
+        if (!$user) {
+            $data->status = false;
+            $data->message = trans('auth.email_not_registered');
+            return $data;
+        }
 
         if (!$user->is_verified) {
             $data->status = false;

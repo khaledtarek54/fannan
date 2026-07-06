@@ -36,10 +36,14 @@ class User extends Authenticatable implements FilamentUser
      */
     protected $fillable = [
         "name", "email", "phone", "verification_code", "is_verified", "password",
-        "role", "profile_photo", "dob", "gender", "completed_profile", "lang", "wallet", "city",
-        "latitude", "longitude", "vat_number", "cr_number", "fcm_token", "platform_fees",
+        "role", "profile_photo", "dob", "gender", "completed_profile", "lang", "wallet", "city", "city_id",
+        "latitude", "longitude", "vat_number", "cr_number", "iban", "fcm_token", "platform_fees",
         "reason", 'facebook', 'instagram', 'youtube', 'snapchat','whatsapp',
     ];
+    // [SECURITY][R2-C4] `is_admin`, `role`, `wallet`, `platform_fees`, `verification_code` and
+    // `is_verified` are intentionally reachable only through direct assignment / admin Filament
+    // forms — no untrusted request payload is mass-assigned into User (register/profile paths use
+    // explicit whitelists), so they are not self-escalatable now that unguard() is gone.
 
     /**
      * The attributes that should be hidden for serialization.

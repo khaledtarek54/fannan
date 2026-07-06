@@ -22,7 +22,10 @@ class SocialLoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => 'required|exists:users,email'
+            // [SECURITY][R2-C1] The Firebase ID token is the ONLY trusted input. The account is
+            // resolved from the token's verified email server-side — a client-supplied `email` is
+            // never trusted (previously it was, which was a full authentication bypass).
+            'id_token' => 'required|string',
         ];
     }
 
@@ -34,7 +37,7 @@ class SocialLoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.exists' => trans('auth.email_not_registered'),
+            'id_token.required' => trans('auth.social_token_required'),
         ];
     }
 }
