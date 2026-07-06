@@ -30,4 +30,5 @@ return [
     'email_not_registered' => 'This email is not registered.',
     'social_token_required' => 'A social login token is required.',
     'invalid_social_token' => 'Invalid or expired social login token.',
+    'social_login_disabled' => 'Social login is temporarily unavailable. Please sign in with your phone number.',
 ];

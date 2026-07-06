@@ -3,15 +3,33 @@
 namespace App\Http\Requests\Users;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class SocialLoginRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * [SECURITY][R2-C1] Social login is behind a master switch (config `auth.social_login_enabled`,
+     * env SOCIAL_LOGIN_ENABLED). Checked here in authorize() so it short-circuits BEFORE the
+     * id_token validation — the current app still posts `{email}` with no token, so gating later
+     * would surface a confusing 422 instead of a clean "unavailable" message.
      */
     public function authorize(): bool
     {
-        return true;
+        return (bool) config('auth.social_login_enabled');
+    }
+
+    /**
+     * Return a clean, uniform "temporarily unavailable" response when the switch is off — never
+     * the default 403 "unauthorized", and never the old email-trust behaviour.
+     */
+    protected function failedAuthorization(): void
+    {
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'data' => null,
+            'message' => trans('auth.social_login_disabled'),
+            'errors' => null,
+        ], 503));
     }
 
     /**

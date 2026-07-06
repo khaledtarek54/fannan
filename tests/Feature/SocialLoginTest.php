@@ -18,6 +18,13 @@ class SocialLoginTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // These cases exercise the ENABLED social-login flow; the switch is off by default (R2-C1).
+        config(['auth.social_login_enabled' => true]);
+    }
+
     /** Replace the Firebase verifier with a fake that returns $email (null = token invalid). */
     private function fakeVerifier(?string $email): void
     {
@@ -91,5 +98,21 @@ class SocialLoginTest extends TestCase
 
         $this->postJson('/api/login-social', ['id_token' => 'valid'])
             ->assertStatus(400);
+    }
+
+    public function test_social_login_is_refused_while_the_switch_is_off(): void
+    {
+        config(['auth.social_login_enabled' => false]);
+        User::factory()->create(['email' => 'victim@example.com']);
+
+        // Off by default: even a well-formed request is refused (503), before any Firebase
+        // verification, and no token is issued. The old email-only payload is likewise refused.
+        $this->postJson('/api/login-social', ['id_token' => 'anything'])
+            ->assertStatus(503)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data', null);
+
+        $this->postJson('/api/login-social', ['email' => 'victim@example.com'])
+            ->assertStatus(503);
     }
 }

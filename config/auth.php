@@ -117,4 +117,19 @@ return [
 
     'password_timeout' => 10800,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Social login switch
+    |--------------------------------------------------------------------------
+    |
+    | [SECURITY][R2-C1] Master switch for POST /login-social (Firebase ID-token
+    | verification). Kept OFF until the mobile app ships a build that sends a
+    | Firebase ID token as `id_token`; flip SOCIAL_LOGIN_ENABLED=true in the env
+    | to turn it on — no code deploy needed. While off, the endpoint returns a
+    | clean "temporarily unavailable" response and NEVER the old email-trust path.
+    |
+    */
+
+    'social_login_enabled' => env('SOCIAL_LOGIN_ENABLED', false),
+
 ];
