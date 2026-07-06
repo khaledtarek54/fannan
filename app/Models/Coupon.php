@@ -6,6 +6,7 @@ use App\Enums\CouponType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Coupon extends Model
 {
@@ -22,5 +23,13 @@ class Coupon extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Redemptions of this coupon (one row per user who used it). Backs the admin usage view.
+     */
+    public function couponUsers(): HasMany
+    {
+        return $this->hasMany(CouponUser::class, 'coupon_id');
     }
 }

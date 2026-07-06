@@ -138,7 +138,7 @@ class CouponResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            RelationManagers\CouponUsersRelationManager::class,
         ];
     }
 
