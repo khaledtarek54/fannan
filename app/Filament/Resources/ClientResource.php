@@ -108,8 +108,10 @@ class ClientResource extends Resource
 
     public static function table(Table $table): Table
     {
+        // No ->query() override here: it used to shadow getEloquentQuery() and dropped withTrashed(),
+        // so soft-deleted clients never appeared and the Restore action below was dead. The resource
+        // query (User::withTrashed()->client()) plus the TrashedFilter now drive the list.
         return $table
-            ->query(User::where("role", UserRole::CLIENT->value)->where('completed_profile', true))
             ->columns([
                 Tables\Columns\TextColumn::make('name')->searchable(),
                 Tables\Columns\TextColumn::make('email')->label('E-Mail')->searchable(),
@@ -124,7 +126,7 @@ class ClientResource extends Resource
                 Tables\Columns\TextColumn::make('city.name')->label('City')->searchable(),
             ])
             ->filters([
-                //
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()

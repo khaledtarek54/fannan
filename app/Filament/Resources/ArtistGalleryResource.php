@@ -24,12 +24,18 @@ class ArtistGalleryResource extends Resource
         return __('app.users');
     }
 
+    // Gallery items are uploaded by artists from the mobile app (ArtistGallery::setVideoAttribute
+    // expects an UploadedFile, which a Filament FileUpload does not provide). Admin only moderates
+    // them here, so creation is disabled and the panel is list + delete only.
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                //
-            ]);
+        // Unused (create/edit disabled) but required by the Resource contract.
+        return $form->schema([]);
     }
 
     public static function table(Table $table): Table
@@ -77,8 +83,7 @@ class ArtistGalleryResource extends Resource
     {
         return [
             'index' => Pages\ListArtistGalleries::route('/'),
-            'create' => Pages\CreateArtistGallery::route('/create'),
-//            'edit' => Pages\EditArtistGallery::route('/{record}/edit'),
+            // create/edit intentionally omitted — moderation only (see canCreate()).
         ];
     }
 }

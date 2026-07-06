@@ -84,26 +84,30 @@ class DirectOrderResource extends Resource
                             ->searchable()
                             ->required()
                             ->options(User::artist()->get()->pluck('name', 'id')),
+                        // category_id is form-only (used to filter subcategories); the order stores the
+                        // chosen subcategory as an OrderCategory row in CreateDirectOrder. Create-only:
+                        // editing an existing order's categories is done via the Categories relation manager.
                         Select::make('category_id')
                             ->label(trans('app.category'))
                             ->searchable()
-                            ->required()
-                            ->options(Category::query()->get()->pluck('name', 'id'))
+                            ->required(fn(string $context) => $context === 'create')
+                            ->dehydrated(false)
+                            ->options(Category::query()->pluck('name', 'id'))
                             ->reactive()
                             ->afterStateUpdated(fn(callable $set) => $set('subcategory_id', null))
-                            ->visibleOn(['view']),
+                            ->visibleOn(['create']),
                         Select::make('subcategory_id')
                             ->label(trans('app.subcategory'))
                             ->searchable()
-                            ->required()
+                            ->required(fn(string $context) => $context === 'create')
                             ->options(function (callable $get) {
                                 $categoryId = $get('category_id');
                                 if ($categoryId) {
-                                    return SubCategory::where('category_id', $categoryId)->get()->pluck('name', 'id');
+                                    return SubCategory::where('category_id', $categoryId)->pluck('name', 'id');
                                 }
-                                return SubCategory::all()->pluck('name', 'id');
+                                return SubCategory::query()->pluck('name', 'id');
                             })
-                            ->visibleOn(['view']),
+                            ->visibleOn(['create']),
                         Select::make('address_id')
                             ->label(trans('app.address'))
                             ->searchable()
@@ -118,19 +122,23 @@ class DirectOrderResource extends Resource
                         Textarea::make('description')
                             ->label(trans('app.description'))
                             ->required(),
+                        // Dates are read in CreateDirectOrder to build an OrderDate row (they are not
+                        // Order columns, so handleRecordCreation consumes them). Create-only — per-date
+                        // editing lives in the Dates relation manager.
                         DateTimePicker::make('start_date')
                             ->label(trans('app.start_date'))
                             ->required()
-                            ->hiddenOn(['view']),
+                            ->visibleOn(['create']),
                         DateTimePicker::make('end_date')
                             ->label(trans('app.end_date'))
                             ->required()
-                            ->hiddenOn(['view']),
+                            ->visibleOn(['create']),
                         TextInput::make('cost')
                             ->label(trans('app.cost'))
-                            ->required()
-                            ->suffix('SAR')
-                            ->visibleOn(['view']),
+                            ->numeric()
+                            ->minValue(0)
+                            ->required(fn(string $context) => $context === 'create')
+                            ->suffix('SAR'),
                     ]),
             ]);
     }
@@ -185,10 +193,15 @@ class DirectOrderResource extends Resource
                     })
             ])
             ->filters([
+                // orders has no city_id column — the city lives on the related address. Filter through
+                // the relationship (matches Order::scopeCity) instead of a nonexistent orders.city_id.
                 SelectFilter::make('city_id')
                     ->label(trans('app.city'))
                     ->searchable()
-                    ->options(City::all()->pluck('name', 'id')->toArray()),
+                    ->options(City::all()->pluck('name', 'id')->toArray())
+                    ->query(fn (Builder $query, array $data) => filled($data['value'])
+                        ? $query->whereHas('address', fn (Builder $q) => $q->where('city_id', $data['value']))
+                        : $query),
                 SelectFilter::make('client_id')
                     ->label(trans('app.client'))
                     ->searchable()
