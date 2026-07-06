@@ -17,12 +17,15 @@ class Controller extends BaseController
         return config('app.url') . "/storage/";
     }
 
+    /**
+     * [SECURITY][R2-C5] Generate a 4-digit phone-verification code. The static `1234` local
+     * backdoor was REMOVED (a prod node running APP_ENV=local made every OTP `1234`), and rand()
+     * was replaced with the CSPRNG random_int(). Prefer User::freshVerificationCode(), which also
+     * sets the TTL + attempt counter; this remains only for callers that just need a code value.
+     */
     public static function createVerificationCode(): int
     {
-        if (config('app.env') == "local")
-            return 1234;
-        else
-            return rand(0000, 9999);
+        return random_int(1000, 9999);
     }
 
     public function cities(): array

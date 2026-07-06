@@ -30,7 +30,8 @@ class UserRepository
         $user->role = $role;
         $user->fcm_token = $fcm_token ?? "";
         $user->lang = $lang ?? "";
-        $user->verification_code = Controller::createVerificationCode();
+        // [SECURITY][R2-C5] Issue the OTP with a TTL + attempt counter (no static 1234 backdoor).
+        $user->freshVerificationCode();
         $user->password = $password;
         $user->save();
         return $user;
@@ -121,6 +122,10 @@ class UserRepository
         $data = new \stdClass();
 
         $user = User::where('phone', $request->phone)->first();
+        // [SECURITY][R2-C5] A resend issues a NEW code with a fresh TTL and reset attempt counter,
+        // so an expired or locked-out code can be recovered without weakening the per-code ceiling.
+        $user->freshVerificationCode();
+        $user->save();
         $data->user = new UserResource($user);
         $data->status = true;
 //        try {
@@ -136,9 +141,11 @@ class UserRepository
     {
         $data = new \stdClass();
         $user = $this->getUserByPhone($request->phone);
-        if ($user->verification_code == $request->verification_code) {
+        // [SECURITY][R2-C5] Enforce TTL + per-account attempt lockout (was a loose `==` on a
+        // never-expiring plaintext code) and consume the code on success (single-use).
+        if ($user && $user->verifyCode($request->verification_code)) {
             $user->is_verified = true;
-            $user->save();
+            $user->clearVerificationCode(); // saves is_verified + nulls the code
             $data->status = true;
             $data->user = new UserResource($user);
             return $data;
@@ -150,14 +157,18 @@ class UserRepository
     public function updatePassword($phone, $password, $code = null)
     {
         $user = $this->getUserByPhone($phone);
-        // [SECURITY] Verify the SMS code before resetting — previously ANY phone number could
-        // reset a password (and got a valid token back). See docs/CODE_REVIEW_FINDINGS.md B3.
-        abort_unless($user && (string) $user->verification_code === (string) $code, 403, trans('auth.wrong_code'));
+        // [SECURITY][R2-C5] Verify the OTP (TTL + attempt lockout) before resetting — previously any
+        // phone could reset (B3); a wrong/expired/exhausted code is now rejected. [R2-M6] On success
+        // the code is consumed and ALL existing Passport tokens are revoked, so a token obtained via
+        // a prior compromise or auth bypass stops working the moment the password changes.
+        abort_unless($user && $user->verifyCode($code), 403, trans('auth.wrong_code'));
         $user->password = $password;
         $user->save();
+        $user->clearVerificationCode();
+        $user->tokens()->delete();
         $data = new \stdClass();
         $data->user = new UserResource($user);
-        $data->token = $user->createToken('authToken')->accessToken;;
+        $data->token = $user->createToken('authToken')->accessToken;
         return $data;
     }
 
