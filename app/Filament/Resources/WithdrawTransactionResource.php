@@ -64,12 +64,12 @@ class WithdrawTransactionResource extends Resource
                             ->label(trans('app.available_amount'))
                             ->disabled()
                             ->dehydrated(false) // display-only helper; never persist it (not a column)
-                            ->suffix('SAR'),
+                            ->suffix(currency_code()),
                         TextInput::make('amount')
                             ->label(trans('app.amount'))
                             ->numeric()
                             ->minValue(1)
-                            ->suffix('SAR')
+                            ->suffix(currency_code())
                             ->required(),
                     ])
             ]);
@@ -83,7 +83,7 @@ class WithdrawTransactionResource extends Resource
                     ->label(trans('app.name'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('amount')
-                    ->suffix(' SAR')
+                    ->suffix(' ' . currency_code())
                     ->label(trans('app.amount')),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label(trans('app.created_at')),

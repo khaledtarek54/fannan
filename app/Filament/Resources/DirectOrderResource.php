@@ -138,7 +138,7 @@ class DirectOrderResource extends Resource
                             ->numeric()
                             ->minValue(0)
                             ->required(fn(string $context) => $context === 'create')
-                            ->suffix('SAR'),
+                            ->suffix(currency_code()),
                     ]),
             ]);
     }
@@ -166,7 +166,7 @@ class DirectOrderResource extends Resource
                 Tables\Columns\TextColumn::make('cost')
                     ->label(trans('app.cost'))
                     ->searchable()
-                    ->suffix(' SAR')
+                    ->suffix(' ' . currency_code())
                     ->sortable(),
 
                 // `status_value` is a computed accessor (Order::getStatusValueAttribute), NOT a DB

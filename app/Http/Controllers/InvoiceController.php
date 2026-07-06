@@ -288,7 +288,7 @@ class InvoiceController extends Controller
                 'tax' => $this->money($breakdown['tax']),
                 'vat_fees' => $this->money($breakdown['vat']),
                 'total_paid' => $this->money($breakdown['total_cost']),
-                'currency' => 'EGP',
+                'currency' => currency_code(), // config/fannan.php (APP_CURRENCY) — EGP/SAR switch
             ],
         ];
     }
@@ -407,7 +407,7 @@ class InvoiceController extends Controller
 
             'totals' => [
                 'subtotal' => '0', 'discount' => '0', 'tax' => '0',
-                'vat_fees' => '0', 'total_paid' => '0', 'currency' => 'EGP',
+                'vat_fees' => '0', 'total_paid' => '0', 'currency' => currency_code(),
             ],
         ];
     }
