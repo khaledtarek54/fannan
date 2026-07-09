@@ -59,9 +59,13 @@ class AdResource extends Resource
                         FileUpload::make('image')
                             ->label(trans('app.photo'))
                             ->required()
+                            ->image() // [DASH-P3] restrict to images + a sane size cap (was unvalidated)
+                            ->maxSize(5120)
                             ->directory("ads"),
                         Forms\Components\TextInput::make('link')
-                            ->label(trans('app.link')),
+                            ->label(trans('app.link'))
+                            ->url() // [DASH-P3] validate it's a real URL (nullable — only checked when filled)
+                            ->maxLength(2048),
                         Forms\Components\MorphToSelect::make('adable')
                             ->label(trans('app.relation'))
                             ->types([
@@ -108,14 +112,18 @@ class AdResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                // [DASH-P3] confirm status changes. NB: this status is admin-facing only — making the
+                // mobile API actually hide inactive ads is the separate API-track change (AdQueryBuilder).
                 Tables\Actions\Action::make('active')
                     ->label(__('app.active'))
+                    ->requiresConfirmation()
                     ->visible(fn(Ad $ad) => $ad->status == "inactive")
                     ->action(function (array $data, Ad $ad) {
                         $ad->setStatus(AdStatus::ACTIVE->value);
                     }),
                 Tables\Actions\Action::make('inactive')
                     ->label(__('app.inactive'))
+                    ->requiresConfirmation()
                     ->visible(fn(Ad $ad) => $ad->status == "active")
                     ->action(function (array $data, Ad $ad) {
                         $ad->setStatus(AdStatus::INACTIVE->value);
