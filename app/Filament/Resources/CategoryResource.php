@@ -60,6 +60,12 @@ class CategoryResource extends Resource
                                 ]),
                         ])
                         ->defaultItems(1)
+                        // [DASH-P1] Removing a repeater row hard-deletes the SubCategory (no SoftDeletes),
+                        // and user_categories.subcategory_id is onDelete('set null') — so deleting one here
+                        // silently wipes the specialization of every artist tied to it. Disallow deletion
+                        // from this form; subcategories can still be added/renamed. Deletion needs a
+                        // dedicated, usage-checked action (a later phase).
+                        ->deletable(false)
                 ]),
             ]);
     }

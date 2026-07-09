@@ -88,10 +88,11 @@ class ArtistResource extends Resource
                             ->required(),
                         Forms\Components\Select::make('gender')
                             ->searchable()
+                            // [DASH-P1] The gender column is enum('male','female') — offering 'other'
+                            // errored on strict MySQL or stored '' and corrupted the record.
                             ->options([
                                 'male' => 'Male',
                                 'female' => 'Female',
-                                'other' => 'Prefer not to tell',
                             ]),
                         Select::make('city_id')
                             ->label(trans('app.city'))
@@ -117,7 +118,10 @@ class ArtistResource extends Resource
                             ->nullable(),
                         Forms\Components\TextInput::make('snapchat')
                             ->nullable(),
-                        Forms\Components\TextInput::make('twiteer')
+                        // [DASH-P1] The column was renamed twiteer -> youtube (migration 2026_02_20)
+                        // and only 'youtube' is in User::$fillable, so the old make('twiteer') field
+                        // silently dropped the value. Map to the real, fillable column.
+                        Forms\Components\TextInput::make('youtube')
                             ->label('X')
                             ->nullable(),
                     ])

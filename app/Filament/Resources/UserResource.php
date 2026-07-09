@@ -10,10 +10,12 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 use Ysfkaya\FilamentPhoneInput\Tables\PhoneColumn;
 
@@ -80,8 +82,7 @@ class UserResource extends Resource
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn($context) => $context === 'create')
                             ->hiddenOn(['view']),
-                        DatePicker::make('dob')
-                            ->required(),
+                        DatePicker::make('dob'), // [DASH-P1] optional — was a needless create blocker for an admin account
 //                        Select::make('gender')
 //                            ->options([
 //                                'male' => 'Male',
@@ -101,13 +102,23 @@ class UserResource extends Resource
                 PhoneColumn::make('phone')->label(trans('app.phone'))->searchable(),
                 Tables\Columns\TextColumn::make('dob')->date(),
             ])
-            ->
-            filters([
-
+            ->filters([
+                Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    // [DASH-P1] Never let an admin delete themselves or the last active admin —
+                    // that would lock everyone out of the panel with SQL-only recovery.
+                    ->before(function (Tables\Actions\DeleteAction $action, User $record) {
+                        if ($record->id === auth()->id()) {
+                            Notification::make()->title('You cannot delete your own admin account.')->danger()->send();
+                            $action->halt();
+                        } elseif (static::activeAdminCount() <= 1) {
+                            Notification::make()->title('You cannot delete the last remaining admin.')->danger()->send();
+                            $action->halt();
+                        }
+                    }),
                 Tables\Actions\Action::make(trans('app.restore'))
                     ->visible(fn(User $user) => $user->deleted_at)
                     ->action(function (array $data, User $user) {
@@ -118,12 +129,27 @@ class UserResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function (Tables\Actions\DeleteBulkAction $action, Collection $records) {
+                            if ($records->contains(fn (User $u) => $u->id === auth()->id())) {
+                                Notification::make()->title('Your selection includes your own admin account — deselect it first.')->danger()->send();
+                                $action->halt();
+                            } elseif (static::activeAdminCount() - $records->whereNull('deleted_at')->count() < 1) {
+                                Notification::make()->title('That would delete every remaining admin and lock everyone out.')->danger()->send();
+                                $action->halt();
+                            }
+                        }),
                 ]),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),
             ]);
+    }
+
+    /** [DASH-P1] Active (non-trashed) admins — the accounts that can actually reach the panel. */
+    protected static function activeAdminCount(): int
+    {
+        return User::where('is_admin', true)->whereNull('deleted_at')->count();
     }
 
     public static function getRelations(): array
@@ -135,7 +161,10 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return User::withTrashed()->where('role', 'admin');
+        // [DASH-P1] List by is_admin (the real panel gate), not role='admin'. role defaults to
+        // 'admin' for every user at the DB level, so the old filter both showed non-admins and
+        // could hide a genuine is_admin account whose role differs.
+        return User::withTrashed()->where('is_admin', true);
     }
 
     public static function getPages(): array

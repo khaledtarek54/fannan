@@ -23,16 +23,18 @@ class ListWithdrawTransactions extends ListRecords
 
     public function getTabs(): array
     {
-        $transactions = Transaction::query()
-            ->where('type', TransactionType::WITHDRAW->value)->get();
+        // [DASH-P1] Count in SQL instead of hydrating the whole withdrawals table into memory
+        // on every list render (eases DB pressure on the constrained prod host).
+        $base = fn () => Transaction::query()->where('type', TransactionType::WITHDRAW->value);
+
         return [
             'Pending' => Tab::make("pending")
                 ->modifyQueryUsing(fn($query) => $query->where('is_completed', 0))
-                ->badge($transactions->where('is_completed', 0)->count())
+                ->badge($base()->where('is_completed', 0)->count())
                 ->badgeColor('success'),
             'Completed' => Tab::make('completed')
                 ->modifyQueryUsing(fn($query) => $query->where('is_completed', 1))
-                ->badge($transactions->where('is_completed', 1)->count())
+                ->badge($base()->where('is_completed', 1)->count())
                 ->badgeColor('primary'),
         ];
     }

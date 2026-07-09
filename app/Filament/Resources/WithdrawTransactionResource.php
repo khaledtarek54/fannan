@@ -142,7 +142,9 @@ class WithdrawTransactionResource extends Resource
         return [
             'index' => Pages\ListWithdrawTransactions::route('/'),
             'create' => Pages\CreateWithdrawTransaction::route('/create'),
-            'edit' => Pages\EditWithdrawTransaction::route('/{record}/edit'),
+            // [DASH-P1] No 'edit' route: a payout is immutable once created. The Edit page reused the
+            // create form with NO balance re-check, letting an admin rewrite a completed payout's
+            // amount/recipient and corrupt the artist's balance (which the API surfaces).
         ];
     }
 }

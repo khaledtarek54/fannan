@@ -22,18 +22,19 @@ class OffersRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('order_id')
-                    ->required()
-                    ->maxLength(255),
-            ]);
+        // [DASH-P1] Offers are artist bids/counter-offers created through the app; this panel is
+        // read-only for them (see table() — no create/edit actions). The form is unused.
+        return $form->schema([]);
     }
 
     public function table(Table $table): Table
     {
+        // [DASH-P1] Read-only. The old form was a single TextInput('order_id'), which let an admin
+        // RE-PARENT an offer onto a different order (silently changing that order's cost/invoice),
+        // and full Create/Edit/Delete let admins fabricate or erase financial offer rows with no
+        // validation. Offers are driven by the API bidding flow, so admins only view them here.
         return $table
-            ->recordTitleAttribute('order_id')
+            ->recordTitleAttribute('id')
             ->columns([
                 Tables\Columns\TextColumn::make('artist.name')
                 ->label(trans('app.artist')),
@@ -43,21 +44,6 @@ class OffersRelationManager extends RelationManager
                     ->label(trans('app.cost')),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label(trans('app.created_at')),
-            ])
-            ->filters([
-                //
-            ])
-            ->headerActions([
-                Tables\Actions\CreateAction::make(),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
     }
 }

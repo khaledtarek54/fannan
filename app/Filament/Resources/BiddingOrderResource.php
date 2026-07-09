@@ -157,7 +157,9 @@ class BiddingOrderResource extends Resource
     {
         return [
             'index' => Pages\ListBiddingOrders::route('/'),
-            'create' => Pages\CreateBiddingOrder::route('/create'),
+            // [DASH-P1] No 'create' route: a hand-built bidding order came out corrupt (Order::create
+            // defaulted type='direct', so it vanished from this list and polluted direct orders, with
+            // no number/status/date rows). Bidding orders are created by clients via the app.
             'view' => Pages\ViewBiddingOrder::route('/{record}'),
             'edit' => Pages\EditBiddingOrder::route('/{record}/edit'),
         ];

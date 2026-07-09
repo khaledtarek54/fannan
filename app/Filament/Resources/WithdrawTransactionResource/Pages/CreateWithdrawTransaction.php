@@ -8,6 +8,7 @@ use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateWithdrawTransaction extends CreateRecord
@@ -21,29 +22,39 @@ class CreateWithdrawTransaction extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $user = User::find($data['user_id']);
-        $netAmount = $user->total_income - $user->total_withdraw;
-
-        if ($netAmount < $data['amount']) {
-            Notification::make()
-                ->title('Insufficient Funds')
-                ->body('The withdrawal amount exceeds the available balance.')
-                ->danger()
-                ->send();
-            throw ValidationException::withMessages([
-                'amount' => 'The withdrawal amount exceeds the available balance.',
-            ]);
-
-        }
-
         $data['type'] = TransactionType::WITHDRAW->value;
         $data['is_completed'] = true;
         return $data;
     }
 
+    /**
+     * [DASH-P1] Do the balance check and the insert atomically, under a row lock on the artist.
+     * The old flow read the balance in mutateFormDataBeforeCreate and inserted separately, so two
+     * payouts issued in the same window could BOTH pass the check and over-pay (a read-then-write
+     * TOCTOU race). Locking the user row serializes concurrent payouts for that user, and the sums
+     * are recomputed from the database (not the in-memory accessors) inside the same transaction.
+     */
     public function handleRecordCreation(array $data): Model
     {
-        return static::getModel()::create($data);
-    }
+        return DB::transaction(function () use ($data) {
+            $user = User::query()->whereKey($data['user_id'])->lockForUpdate()->firstOrFail();
 
+            $income = $user->transactions()->where('type', TransactionType::INCOME->value)->sum('amount');
+            $withdrawn = $user->transactions()->where('type', TransactionType::WITHDRAW->value)->sum('amount');
+            $available = $income - $withdrawn;
+
+            if ($available < $data['amount']) {
+                Notification::make()
+                    ->title('Insufficient Funds')
+                    ->body('The withdrawal amount exceeds the available balance.')
+                    ->danger()
+                    ->send();
+                throw ValidationException::withMessages([
+                    'amount' => 'The withdrawal amount exceeds the available balance.',
+                ]);
+            }
+
+            return static::getModel()::create($data);
+        });
+    }
 }

@@ -84,10 +84,10 @@ class ClientResource extends Resource
                             ->required(),
                         Forms\Components\Select::make('gender')
                             ->searchable()
+                            // [DASH-P1] gender column is enum('male','female'); 'other' corrupted the row.
                             ->options([
                                 'male' => 'Male',
                                 'female' => 'Female',
-                                'other' => 'Prefer not to tell',
                             ]),
                         Select::make('city_id')
                             ->label(trans('app.city'))
