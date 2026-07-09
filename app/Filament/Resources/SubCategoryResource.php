@@ -5,14 +5,16 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\SubCategoryResource\Pages;
 use App\Filament\Resources\SubCategoryResource\RelationManagers;
 use App\Models\SubCategory;
+use App\Models\UserCategory;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Collection;
 
 class SubCategoryResource extends Resource
 {
@@ -56,20 +58,45 @@ class SubCategoryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                // [DASH-P2] SubCategory has no soft-deletes; deleting it is permanent and nulls the
-                // specialization of every artist tied to it (user_categories onDelete set null).
+                // [DASH-P1 review] SubCategory has no soft-deletes and user_categories.subcategory_id is
+                // onDelete('set null'), so deleting an in-use subcategory silently wipes the
+                // specialization of every artist tied to it. The Category repeater already blocks
+                // deletion (deletable(false)); this closes the other door — block the delete when the
+                // subcategory is still referenced by any artist, instead of only warning.
                 Tables\Actions\DeleteAction::make()
-                    ->modalDescription('This permanently deletes the subcategory and clears the specialization of every artist tied to it. This cannot be undone.'),
+                    ->modalDescription('This permanently deletes the subcategory. This cannot be undone.')
+                    ->before(function (Tables\Actions\DeleteAction $action, SubCategory $record) {
+                        if (static::usageCount([$record->id]) > 0) {
+                            Notification::make()
+                                ->title('This subcategory is in use by one or more artists and cannot be deleted. Reassign those artists first.')
+                                ->danger()->send();
+                            $action->halt();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->modalDescription('This permanently deletes the selected subcategories and clears the specialization of every artist tied to them. This cannot be undone.'),
+                        ->modalDescription('This permanently deletes the selected subcategories. This cannot be undone.')
+                        ->before(function (Tables\Actions\DeleteBulkAction $action, Collection $records) {
+                            if (static::usageCount($records->pluck('id')->all()) > 0) {
+                                Notification::make()
+                                    ->title('One or more selected subcategories are in use by artists and cannot be deleted. Deselect or reassign them first.')
+                                    ->danger()->send();
+                                $action->halt();
+                            }
+                        }),
                 ]),
             ])
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make(),
             ]);
+    }
+
+    /** [DASH-P1 review] How many artist specializations point at the given subcategory ids. */
+    protected static function usageCount(array $subcategoryIds): int
+    {
+        return UserCategory::whereIn('subcategory_id', $subcategoryIds)->count();
     }
 
     public static function getRelations(): array

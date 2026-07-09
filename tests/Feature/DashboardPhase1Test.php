@@ -10,11 +10,14 @@ use App\Filament\Resources\TaxResource;
 use App\Filament\Resources\UserResource;
 use App\Filament\Resources\UserResource\Pages\CreateUser;
 use App\Filament\Resources\UserResource\Pages\ListUsers;
+use App\Filament\Resources\SubCategoryResource\Pages\ListSubCategories;
 use App\Filament\Resources\WithdrawTransactionResource;
 use App\Filament\Resources\WithdrawTransactionResource\Pages\CreateWithdrawTransaction;
 use App\Models\Setting;
+use App\Models\SubCategory;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\UserCategory;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -169,5 +172,34 @@ class DashboardPhase1Test extends TestCase
     {
         $this->assertArrayNotHasKey('create', BiddingOrderResource::getPages(), 'bidding-order create produced corrupt rows');
         $this->assertArrayNotHasKey('create', SettingResource::getPages(), 'setting create produced app-breaking NULL-type rows');
+    }
+
+    // ---- Subcategory delete guard (Phase 1 review follow-up) --------------------
+
+    public function test_a_subcategory_in_use_by_an_artist_cannot_be_deleted(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $artist = User::factory()->artist()->create();
+        $sub = SubCategory::create(['name' => 'Oud']);
+        UserCategory::create(['user_id' => $artist->id, 'subcategory_id' => $sub->id]);
+
+        $this->actingAs($admin);
+        Livewire::test(ListSubCategories::class)
+            ->callTableAction('delete', $sub);
+
+        // Blocked: deleting it would have nulled the artist's specialization.
+        $this->assertDatabaseHas('sub_categories', ['id' => $sub->id]);
+    }
+
+    public function test_an_unused_subcategory_can_still_be_deleted(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $sub = SubCategory::create(['name' => 'Unused']);
+
+        $this->actingAs($admin);
+        Livewire::test(ListSubCategories::class)
+            ->callTableAction('delete', $sub);
+
+        $this->assertDatabaseMissing('sub_categories', ['id' => $sub->id]);
     }
 }
