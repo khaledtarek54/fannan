@@ -107,7 +107,7 @@ class ArtistResource extends Resource
                             ->required()
                             ->rules([new Iban()]),
                         FileUpload::make('profile_photo')
-                            ->label('Profile Photo')
+                            ->label(trans('app.photo'))
                             ->required()
                             ->directory("users"),
                         PhoneInput::make('whatsapp')
@@ -144,7 +144,7 @@ class ArtistResource extends Resource
                 Tables\Columns\TextColumn::make('gender')
                     ->label(trans('app.gender'))
                     ->searchable(),
-                Tables\Columns\TextColumn::make('city.name')
+                Tables\Columns\TextColumn::make('cityRelation.name')
                     ->label(trans('app.city'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('platform_fees')

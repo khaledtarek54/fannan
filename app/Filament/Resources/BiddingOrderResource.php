@@ -158,7 +158,7 @@ class BiddingOrderResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationGroup::make('Relations', [
+            RelationGroup::make(trans('app.relations'), [
                 BiddingOrderArtistsRelationManager::class,
                 CategoriesRelationManager::class,
                 DatesRelationManager::class,

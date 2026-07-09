@@ -99,9 +99,7 @@ class AdResource extends Resource
                         'success' => 'active',
                         'danger' => 'inactive',
                     ])
-                    ->formatStateUsing(function ($state) {
-                        return $state === 'active' ? 'Active' : 'Inactive';
-                    }),
+                    ->formatStateUsing(fn ($state) => $state === 'active' ? trans('app.active') : trans('app.inactive')),
                 TextColumn::make('created_at')
                     ->dateTime(),
                 TextColumn::make('adable.name'),

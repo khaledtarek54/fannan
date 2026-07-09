@@ -112,7 +112,7 @@ class WithdrawTransactionResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
 //                    Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\BulkAction::make('bulkMarkCompleted')
-                        ->label('Mark as Completed')
+                        ->label(trans('app.mark_as_completed'))
                         ->icon('heroicon-o-check')
                         ->requiresConfirmation()
                         ->form(static::passwordConfirmField())
@@ -134,7 +134,7 @@ class WithdrawTransactionResource extends Resource
     {
         return [
             TextInput::make('admin_password')
-                ->label('Confirm your password')
+                ->label(trans('app.confirm_password'))
                 ->password()
                 ->required()
                 ->dehydrated(false) // never persisted; just a gate

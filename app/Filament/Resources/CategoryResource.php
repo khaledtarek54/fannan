@@ -100,7 +100,7 @@ class CategoryResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationGroup::make('Relations', [
+            RelationGroup::make(trans('app.relations'), [
                 UserCategoriesRelationManager::class,
             ]),
         ];

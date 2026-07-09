@@ -99,7 +99,7 @@ class ClientResource extends Resource
                         Forms\Components\TextInput::make('cr_number')
                             ->rules(['digits_between:1,16']),
                         FileUpload::make('profile_photo')
-                            ->label('Profile Photo')
+                            ->label(trans('app.photo'))
                             ->required()
                             ->directory("users"),
                     ])
@@ -118,10 +118,20 @@ class ClientResource extends Resource
                 PhoneColumn::make('phone')->label(trans('app.phone'))->searchable(),
                 Tables\Columns\TextColumn::make('dob')->label(trans('app.dob'))->date(),
                 Tables\Columns\TextColumn::make('gender')->label(trans('app.gender'))->searchable(),
-                Tables\Columns\TextColumn::make('city.name')->label(trans('app.city'))->searchable(),
+                Tables\Columns\TextColumn::make('cityRelation.name')->label(trans('app.city'))->searchable(),
+                // [DASH-P3] the client's order (event) volume at a glance.
+                Tables\Columns\TextColumn::make('client_orders_count')->label(trans('app.orders'))->sortable(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
+                // [DASH-P3] filter clients by gender + city (was only a Trashed filter).
+                Tables\Filters\SelectFilter::make('gender')
+                    ->label(trans('app.gender'))
+                    ->options(['male' => 'Male', 'female' => 'Female']),
+                Tables\Filters\SelectFilter::make('city_id')
+                    ->label(trans('app.city'))
+                    ->searchable()
+                    ->options(fn () => City::pluck('name', 'id')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -156,7 +166,8 @@ class ClientResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return User::withTrashed()->client();
+        // [DASH-P3] load the client's order count for the list column (no N+1).
+        return User::withTrashed()->client()->withCount('clientOrders');
     }
 
     public static function getPages(): array
