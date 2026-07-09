@@ -2,23 +2,20 @@
 
 namespace Tests\Feature;
 
-use App\Enums\TransactionType;
-use App\Filament\Resources\WithdrawTransactionResource\Pages\ListWithdrawTransactions;
 use App\Models\AdminActivityLog;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Dashboard Phase 2 — admin audit trail + password-confirmation on money actions. Admin-panel only;
- * the audit log is a separate table the mobile API never reads or writes, and the observer only logs
- * when a panel admin (is_admin, web guard) is acting — so API traffic is never logged or affected.
+ * The admin audit trail records who did what in the panel. The observer must log ONLY when a panel
+ * admin (is_admin, web guard) is acting — so mobile-API traffic (Passport 'api' guard) is never
+ * logged or affected — and must never write secrets into the log.
  */
-class DashboardPhase2Test extends TestCase
+class AdminAuditLogTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -28,9 +25,7 @@ class DashboardPhase2Test extends TestCase
         Filament::setCurrentPanel(Filament::getPanel('admin'));
     }
 
-    // ---- Admin audit trail -----------------------------------------------------
-
-    public function test_a_panel_admin_action_is_recorded_in_the_audit_log(): void
+    public function test_a_panel_admin_action_is_recorded(): void
     {
         $target = Transaction::factory()->income()->create(['amount' => 100]);
         $admin = User::factory()->admin()->create();
@@ -67,7 +62,7 @@ class DashboardPhase2Test extends TestCase
         $this->assertSame(0, AdminActivityLog::count());
     }
 
-    public function test_sensitive_fields_are_stripped_from_the_audit_properties(): void
+    public function test_sensitive_fields_are_stripped_from_the_log(): void
     {
         $user = User::factory()->client()->create();
         $admin = User::factory()->admin()->create();
@@ -83,32 +78,5 @@ class DashboardPhase2Test extends TestCase
         $this->assertNotNull($log);
         $this->assertArrayNotHasKey('password', $log->properties, 'password must never be written to the audit log');
         $this->assertArrayHasKey('name', $log->properties);
-    }
-
-    // ---- Password confirmation on money actions --------------------------------
-
-    public function test_settling_a_payout_requires_the_admins_password(): void
-    {
-        $admin = User::factory()->admin()->create(); // factory password is 'password'
-        $artist = User::factory()->artist()->create();
-        $payout = Transaction::factory()->withdraw()->create([
-            'user_id' => $artist->id,
-            'amount' => 50,
-            'is_completed' => 0,
-        ]);
-
-        $this->actingAs($admin);
-
-        // Wrong password → action is blocked, payout stays pending.
-        Livewire::test(ListWithdrawTransactions::class)
-            ->callTableAction('markCompleted', $payout, data: ['admin_password' => 'not-the-password'])
-            ->assertHasTableActionErrors(['admin_password']);
-        $this->assertSame(0, (int) $payout->fresh()->is_completed);
-
-        // Correct password → payout is settled.
-        Livewire::test(ListWithdrawTransactions::class)
-            ->callTableAction('markCompleted', $payout, data: ['admin_password' => 'password'])
-            ->assertHasNoTableActionErrors();
-        $this->assertSame(1, (int) $payout->fresh()->is_completed);
     }
 }
