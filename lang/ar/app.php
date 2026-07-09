@@ -54,6 +54,7 @@ return [
     "from_date" => "من تاريخ",
     "until_date" => "إلى تاريخ",
     "has_review" => "يحتوي على مراجعة",
+    "export" => "تصدير CSV",
     "start_date" => "تاريخ البدء",
     "end_date" => "تاريخ الانتهاء",
     "coupon_date_not_valid" => "كود الخصم غير فعال خلال المدة الزمنية الحالية.",

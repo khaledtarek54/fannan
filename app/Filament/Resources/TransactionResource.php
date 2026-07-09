@@ -7,6 +7,7 @@ use App\Filament\Resources\TransactionResource\Pages;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use App\Filament\Actions\ExportCsvAction;
 use App\Filament\Filters\CreatedBetweenFilter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -91,6 +92,16 @@ class TransactionResource extends Resource
                     ->relationship('user', 'name')
                     ->searchable(),
                 CreatedBetweenFilter::make(),
+            ])
+            ->headerActions([
+                // [DASH-P3] export the currently filtered ledger to CSV.
+                ExportCsvAction::make([
+                    trans('app.name') => fn ($r) => $r->user?->name,
+                    trans('app.type') => fn ($r) => $r->type,
+                    trans('app.amount') => fn ($r) => $r->amount,
+                    trans('app.completed') => fn ($r) => $r->is_completed ? 1 : 0,
+                    trans('app.created_at') => fn ($r) => (string) $r->created_at,
+                ], 'transactions'),
             ])
             ->defaultSort('id', 'desc');
     }

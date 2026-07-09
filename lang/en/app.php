@@ -54,6 +54,7 @@ return [
     "from_date" => "From",
     "until_date" => "Until",
     "has_review" => "Has written review",
+    "export" => "Export CSV",
     "start_date" => "Start Date",
     "end_date" => "End Date",
     "coupon_date_not_valid" => "The coupon is not valid within the current date range.",

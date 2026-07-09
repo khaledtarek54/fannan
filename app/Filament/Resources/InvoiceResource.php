@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\OrderType;
 use App\Filament\Actions\DownloadInvoiceAction;
+use App\Filament\Actions\ExportCsvAction;
 use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\InvoiceResource\Pages;
 use App\Models\Order;
@@ -108,6 +109,18 @@ class InvoiceResource extends Resource
             ])
             ->actions([
                 DownloadInvoiceAction::make(),
+            ])
+            ->headerActions([
+                // [DASH-P3] export the currently filtered invoice list to CSV.
+                ExportCsvAction::make([
+                    trans('app.invoice_number') => fn (Order $r) => app(InvoiceService::class)->invoiceNumber($r),
+                    trans('app.number') => fn (Order $r) => $r->number,
+                    trans('app.client') => fn (Order $r) => $r->client?->name,
+                    trans('app.artist') => fn (Order $r) => $r->artist?->name,
+                    trans('app.total') => fn (Order $r) => $r->total_cost,
+                    trans('app.payment_status') => fn (Order $r) => $r->is_paid ? trans('app.paid') : trans('app.unpaid'),
+                    trans('app.issued_at') => fn (Order $r) => (string) $r->created_at,
+                ], 'invoices'),
             ])
             ->defaultSort('id', 'desc');
     }
