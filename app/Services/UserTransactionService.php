@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\UserTransaction;
+use Illuminate\Support\Facades\Log;
 
 class UserTransactionService
 {
@@ -11,7 +12,11 @@ class UserTransactionService
      */
     public function create(array $validated): UserTransaction
     {
-        $customerReference = rand(100000, 999999);
+        // [SECURITY][R2-M1] Use the CSPRNG over a large space instead of rand(100000,999999) —
+        // harder to guess/enumerate. The `customer_reference` column already has a UNIQUE index
+        // (2025_12_10 migration), so the negligible chance of a collision fails the insert rather
+        // than settling the wrong transaction.
+        $customerReference = (string) random_int(100000000000, 999999999999);
 
         return UserTransaction::create([
             'order_id'           => $validated['order_id'] ?? null,
@@ -49,9 +54,27 @@ class UserTransactionService
         $payment->callback_payload = json_encode($rawPayload);
 
         if ($data->status === "PAID") {
-            $payment->is_paid = true;
-            if ($payment->order) {
-                $payment->order->update(['is_paid' => true]);
+            // [SECURITY][R2-C2/R2-H6] Only settle if the amount EasyKash actually processed covers
+            // the charge we bound to this order server-side (EasyKashController sets `amount` from
+            // the order total). A tampered / pay-less pay-link therefore cannot settle the order,
+            // even though its PAID callback is legitimately HMAC-signed for the tiny amount.
+            $paid     = (float) ($data->Amount ?? 0);
+            $expected = (float) $payment->amount;
+
+            if ($expected > 0 && $paid + 0.01 >= $expected) {
+                $payment->is_paid = true;
+                if ($payment->order) {
+                    // Direct assignment — is_paid is no longer mass-assignable (R2-C3).
+                    $order = $payment->order;
+                    $order->is_paid = true;
+                    $order->save();
+                }
+            } else {
+                Log::warning('EasyKash underpayment ignored — order NOT settled', [
+                    'customer_reference' => $payment->customer_reference,
+                    'expected'           => $expected,
+                    'paid'               => $paid,
+                ]);
             }
         }
 
@@ -69,6 +92,9 @@ class UserTransactionService
      */
     public function getTransactionStatus(string $customerReference): ?UserTransaction
     {
-        return UserTransaction::where('order_id', $customerReference)->latest()->first();
+        // [SECURITY/CORRECTNESS][R2-M4] Look up by customer_reference (the value passed in) — this
+        // was querying `order_id` with a customer_reference, returning the newest transaction for
+        // whatever order happened to share that id rather than the one asked about.
+        return UserTransaction::where('customer_reference', $customerReference)->latest()->first();
     }
 }

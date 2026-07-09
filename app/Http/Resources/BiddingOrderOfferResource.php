@@ -22,7 +22,9 @@ class BiddingOrderOfferResource extends JsonResource
             'status' => $this->status,
             'status_text' => trans('app.' . $this->status),
             'artist_id' => $this->artist_id,
-            'artist' => new UserResource($artist),
+            // [SECURITY][R2-H2/H3] Lean counterparty view; contact (email/phone/whatsapp) is
+            // exposed only once this offer is accepted (a confirmed engagement).
+            'artist' => new CounterpartyResource($artist, (bool) $this->is_accepted),
             'average_rate' => (float)$artist?->rating_value,
             'rates' => $artist?->ratings->count(),
             'is_accepted' => $this->is_accepted,

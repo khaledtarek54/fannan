@@ -17,10 +17,15 @@ class PasswordResetTest extends TestCase
 
     private function makeUser(): User
     {
-        return User::factory()->create([
-            'phone' => '966500000001',
+        $user = User::factory()->create(['phone' => '966500000001']);
+        // [R2-C5] The code now needs a live TTL window to be accepted.
+        $user->forceFill([
             'verification_code' => 1234,
-        ]);
+            'verification_code_expires_at' => now()->addMinutes(10),
+            'verification_code_attempts' => 0,
+        ])->save();
+
+        return $user;
     }
 
     public function test_reset_is_rejected_without_a_verification_code(): void

@@ -14,6 +14,9 @@ class Transaction extends Model
 
     protected $fillable = ['user_id', 'type', 'amount', 'deleted_at', "model_type", "model_id", 'is_completed'];
 
+    // [SECURITY][R2-L5] Keep soft-delete / polymorphic internals out of serialized output.
+    protected $hidden = ['deleted_at', 'model_type', 'model_id'];
+
     public function model(): MorphTo
     {
         return $this->morphTo();

@@ -112,6 +112,48 @@ class PaymentService
             /** @var OrderPaymentTransaction $model */
             $model = $this->orderPaymentTransactionRepository->findByCheckoutId($data['checkoutId']);
             if ($model) {
+                // [SECURITY][R2-H6] Idempotency — never settle the same checkout twice (avoids
+                // re-flipping status / re-running downstream effects on a replayed confirmation).
+                if ($model->is_complete) {
+                    Log::info('Webhook already processed', ['checkoutId' => $data['checkoutId']]);
+                    return $data;
+                }
+
+                // [SECURITY][R2-H6] Bind the verified success to THIS order. getPaymentStatus reads
+                // the status from the (validated) resourcePath, but the record is looked up by the
+                // client-supplied checkout `id`; without this check a genuine success for a cheap
+                // or unrelated checkout could be pointed at another order's id to mark it paid.
+                $expectedMtx = 'Transaction' . $model->order_id;
+                if (($data['merchantTransactionId'] ?? null) !== $expectedMtx) {
+                    Log::warning('HyperPay merchantTransactionId mismatch — not settling', [
+                        'checkoutId' => $data['checkoutId'],
+                        'expected'   => $expectedMtx,
+                        'got'        => $data['merchantTransactionId'] ?? null,
+                    ]);
+                    return [
+                        'status'        => false,
+                        'message'       => trans('app.payment_error'),
+                        'status_string' => 'Not paid',
+                        'checkoutId'    => $data['checkoutId'],
+                    ];
+                }
+
+                // [SECURITY][R2-H6] The charge was fixed server-side at checkout, so the captured
+                // amount must cover it (1-unit tolerance absorbs gateway integer rounding).
+                if (isset($data['amount']) && (float) $data['amount'] + 1.0 < (float) $model->amount) {
+                    Log::warning('HyperPay captured amount below charge — not settling', [
+                        'checkoutId' => $data['checkoutId'],
+                        'expected'   => (float) $model->amount,
+                        'paid'       => (float) $data['amount'],
+                    ]);
+                    return [
+                        'status'        => false,
+                        'message'       => trans('app.payment_error'),
+                        'status_string' => 'Not paid',
+                        'checkoutId'    => $data['checkoutId'],
+                    ];
+                }
+
                 $model->is_complete = true;
                 $model->save();
                 $order = $model->order;

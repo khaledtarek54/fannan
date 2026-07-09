@@ -47,7 +47,8 @@ class UserController extends Controller
         $request->validate(['phone' => 'required|exists:users,phone']);
 
         $user = $this->userRepository->getUserByPhone($request->phone);
-        $user->verification_code = self::createVerificationCode();
+        // [SECURITY][R2-C5] Issue with TTL + attempt counter (no static 1234 backdoor).
+        $user->freshVerificationCode();
         $user->save();
 
         // NOTE: SMS/OTP delivery is not wired in this codebase (there is no OTP notification class).

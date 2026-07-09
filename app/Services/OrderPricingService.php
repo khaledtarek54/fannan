@@ -28,15 +28,19 @@ class OrderPricingService
         $vatRate = $this->rate(SettingKey::VAT->value);
 
         $taxAmount = $cost * $taxRate / 100;
+        // [SECURITY][R2-M3] Clamp the discount so a fixed coupon larger than the order can't drive
+        // the charge negative, and floor the total at 0.
+        $discount = max(0.0, min($discount, $cost + $taxAmount));
         $subtotal = $cost + $taxAmount - $discount;
         $vatAmount = $subtotal * $vatRate / 100;
+        $total = max(0.0, $subtotal + $vatAmount);
 
         return [
             'cost' => $cost,
             'tax' => $taxAmount,
             'vat' => $vatAmount,
             'discount' => $discount,
-            'total_cost' => $subtotal + $vatAmount,
+            'total_cost' => $total,
         ];
     }
 

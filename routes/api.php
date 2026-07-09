@@ -127,7 +127,8 @@ Route::middleware(['auth:api', 'DeleteAccount'])->group(function () {
     Route::controller(SupportController::class)->prefix('support')->group(function () {
         Route::get('/', 'index');
         Route::post('/create', 'store');
-        Route::post('/delete', 'destroy');
+        // [SECURITY][R2-L2] Removed POST /support/delete — it pointed at a non-existent
+        // SupportController::destroy (500 on hit) and had no ownership check in its intended form.
     });
 
 

@@ -104,7 +104,9 @@ class UserResource extends Resource
                 Tables\Actions\Action::make(trans('app.restore'))
                     ->visible(fn(User $user) => $user->deleted_at)
                     ->action(function (array $data, User $user) {
-                        $user->update(['deleted_at' => null]);
+                        // [SECURITY][R2-C4] use SoftDeletes restore() — mass-assigning deleted_at
+                        // no longer works now that unguard() is removed (it isn't in $fillable).
+                        $user->restore();
                     })->requiresConfirmation(),
             ])
             ->bulkActions([

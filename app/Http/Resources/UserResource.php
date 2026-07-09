@@ -22,7 +22,9 @@ class UserResource extends JsonResource
             'phone' => $this->phone,
             'phone_prefix' => $this->phone_prefix,
             'role' => $this->role,
-            'fcm_token' => $this->fcm_token,
+            // [SECURITY][R2-H2] fcm_token removed — it was leaked to other users via the
+            // `artist` embed in offer listings, enabling push-notification hijacking. The client
+            // sends its token; it never needs it back. Also in User::$hidden now.
             'email' => $this->email,
             'city' => $this->city ?: $this->cityRelation?->name,
             'city_id' => $this->city_id,
