@@ -7,6 +7,7 @@ use App\Filament\Resources\TransactionResource\Pages;
 use App\Models\Transaction;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use App\Filament\Filters\CreatedBetweenFilter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
@@ -84,6 +85,12 @@ class TransactionResource extends Resource
                     ]),
                 TernaryFilter::make('is_completed')
                     ->label(trans('app.completed')),
+                // [DASH-P3] filter the ledger by user + date range (queried on demand, not preloaded).
+                SelectFilter::make('user_id')
+                    ->label(trans('app.name'))
+                    ->relationship('user', 'name')
+                    ->searchable(),
+                CreatedBetweenFilter::make(),
             ])
             ->defaultSort('id', 'desc');
     }

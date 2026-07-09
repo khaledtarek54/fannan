@@ -2,12 +2,14 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\RatingResource\Pages;
 use App\Models\Rating;
 use App\Models\User;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -80,6 +82,19 @@ class RatingResource extends Resource
                     ->label(trans('app.artist'))
                     ->searchable()
                     ->options(fn () => User::artist()->pluck('name', 'id')),
+                // [DASH-P3] filter by the reviewing client, by whether written feedback was left, and by date.
+                SelectFilter::make('client_id')
+                    ->label(trans('app.client'))
+                    ->relationship('client', 'name')
+                    ->searchable(),
+                TernaryFilter::make('has_review')
+                    ->label(trans('app.has_review'))
+                    ->queries(
+                        true: fn (Builder $q) => $q->whereNotNull('notes')->where('notes', '!=', ''),
+                        false: fn (Builder $q) => $q->where(fn (Builder $q) => $q->whereNull('notes')->orWhere('notes', '')),
+                        blank: fn (Builder $q) => $q,
+                    ),
+                CreatedBetweenFilter::make(),
             ])
             ->actions([
                 Tables\Actions\DeleteAction::make(),

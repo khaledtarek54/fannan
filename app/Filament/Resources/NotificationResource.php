@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\NotificationResource\Pages;
 use App\Models\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -74,6 +76,12 @@ class NotificationResource extends Resource
             ->filters([
                 TernaryFilter::make('is_read')
                     ->label(trans('app.read')),
+                // [DASH-P3] filter by recipient and date.
+                SelectFilter::make('to_user_id')
+                    ->label(trans('app.name'))
+                    ->relationship('toUser', 'name')
+                    ->searchable(),
+                CreatedBetweenFilter::make(),
             ])
             ->actions([
                 Tables\Actions\DeleteAction::make(),
