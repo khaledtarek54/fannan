@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\ModelName;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\SupportResource\Pages;
 use App\Models\Support;
 use Carbon\Carbon;
@@ -84,9 +85,14 @@ class SupportResource extends Resource
                 TextColumn::make('description')
                     ->label(trans('app.description'))
                     ->searchable(),
+                // [DASH-P3] show when the ticket was opened, and allow sorting/filtering by it.
+                TextColumn::make('created_at')
+                    ->label(trans('app.created_at'))
+                    ->dateTime()
+                    ->sortable(),
             ])
             ->filters([
-                //
+                CreatedBetweenFilter::make(),
             ])
             ->actions([
                 Action::make('mark_as_complete')

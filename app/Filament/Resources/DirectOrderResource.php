@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\DirectOrderResource\Pages;
 use App\Filament\Resources\DirectOrderResource\RelationManagers\CategoriesRelationManager;
 use App\Filament\Resources\DirectOrderResource\RelationManagers\DatesRelationManager;
@@ -222,6 +223,7 @@ class DirectOrderResource extends Resource
                     ->label(trans('app.artist'))
                     ->searchable()
                     ->options(User::artist()->pluck('name', 'id')),
+                CreatedBetweenFilter::make(), // [DASH-P3] filter orders by creation date range
             ])
             ->actions([
 

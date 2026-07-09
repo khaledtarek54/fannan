@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\OrderStatus;
 use App\Enums\OrderType;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\BiddingOrderResource\Pages;
 use App\Filament\Resources\BiddingOrderResource\RelationManagers\BiddingOrderArtistsRelationManager;
 use App\Filament\Resources\DirectOrderResource\RelationManagers\CategoriesRelationManager;
@@ -118,10 +120,28 @@ class BiddingOrderResource extends Resource
                 // not a DB column — ->searchable()/->sortable() would throw "Unknown column". Display only.
                 Tables\Columns\TextColumn::make('subcategories_text')
                     ->label(trans('app.categories')),
-
+                // [DASH-P3] status_value is a computed accessor (current status name) — display only.
+                Tables\Columns\TextColumn::make('status_value')
+                    ->label(trans('app.status'))
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => $state ? ucwords(str_replace('_', ' ', $state)) : '—'),
             ])
             ->filters([
-                //
+                // [DASH-P3] give the bidding list the filters it lacked: current status, client, date.
+                Tables\Filters\SelectFilter::make('status')
+                    ->label(trans('app.status'))
+                    ->options(collect(OrderStatus::cases())
+                        ->mapWithKeys(fn (OrderStatus $s) => [$s->value => ucfirst(str_replace('_', ' ', $s->value))])
+                        ->all())
+                    ->query(fn (Builder $query, array $data) => filled($data['value'])
+                        ? $query->currentStatus($data['value'])
+                        : $query),
+                Tables\Filters\SelectFilter::make('client_id')
+                    ->label(trans('app.client'))
+                    // scope the dropdown to clients (matches DirectOrderResource) rather than listing every user
+                    ->options(fn () => User::client()->pluck('name', 'id'))
+                    ->searchable(),
+                CreatedBetweenFilter::make(),
             ])
             ->actions([
 //                Tables\Actions\EditAction::make(),

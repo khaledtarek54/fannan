@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\OrderType;
 use App\Filament\Actions\DownloadInvoiceAction;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\InvoiceResource\Pages;
 use App\Models\Order;
 use App\Models\User;
@@ -103,6 +104,7 @@ class InvoiceResource extends Resource
                     ->label(trans('app.artist'))
                     ->searchable()
                     ->options(fn () => User::artist()->pluck('name', 'id')),
+                CreatedBetweenFilter::make(), // [DASH-P3] filter invoices by issue-date range
             ])
             ->actions([
                 DownloadInvoiceAction::make(),
