@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 /**
@@ -50,6 +51,21 @@ class AdminAuditLogTest extends TestCase
         Setting::create(['type' => 'demo_key', 'value' => ['en' => '1', 'ar' => '1']]);
 
         $this->assertSame(0, AdminActivityLog::count());
+    }
+
+    public function test_an_admin_authenticated_on_the_api_guard_is_not_logged(): void
+    {
+        // Mobile API: an admin (admins share the users table + can log in via the app) authenticates
+        // on the 'api' guard, and auth:api flips the DEFAULT guard to 'api' mid-request. The observer
+        // must still not log — it gates on the web (session) guard, which a token request never sets.
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin, 'api');
+        Auth::shouldUse('api'); // what the auth:api middleware does after authenticating
+
+        Transaction::factory()->income()->create(['amount' => 100]);
+        Setting::create(['type' => 'demo_api', 'value' => ['en' => '1', 'ar' => '1']]);
+
+        $this->assertSame(0, AdminActivityLog::count(), 'API-guard admin actions must never be logged');
     }
 
     public function test_a_non_admin_actor_is_not_logged(): void

@@ -7,15 +7,22 @@ use Filament\Tables\Actions\Action;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * [DASH-P3] Reusable "Export CSV" header action for admin lists. Streams the table's CURRENTLY
- * FILTERED rows (via getFilteredTableQuery) as a CSV download — Filament 3.3 has no native export
- * action, so this is a small dependency-free streaming action. Admin-panel only; reads only.
+ * [DASH-P3] Reusable "Export CSV" header action for admin lists. Exports the table's CURRENTLY
+ * FILTERED rows (via getFilteredTableQuery) as a CSV download — Filament 3.3 has no native export.
+ * Admin-panel only; reads only.
+ *
+ * NB on memory: a Livewire action's StreamedResponse is NOT streamed to the client — Livewire buffers
+ * the whole body (SupportFileDownloads) and base64-encodes it, so the entire CSV is resident in RAM.
+ * To stay safe on the memory-tight prod host we hard-cap the export at MAX_ROWS rows.
  *
  * $columns maps a CSV header to a closure that returns that cell's value for a record:
  *   ExportCsvAction::make(['Type' => fn ($r) => $r->type, 'Amount' => fn ($r) => $r->amount])
  */
 class ExportCsvAction
 {
+    /** Hard cap so a huge filtered export can't exhaust memory_limit (Livewire buffers the whole body). */
+    public const MAX_ROWS = 50000;
+
     /** @param array<string, Closure> $columns */
     public static function make(array $columns, string $filename = 'export'): Action
     {
@@ -24,7 +31,7 @@ class ExportCsvAction
             ->icon('heroicon-o-arrow-down-tray')
             ->color('gray')
             ->action(fn ($livewire): StreamedResponse => response()->streamDownload(
-                fn () => self::writeCsv($livewire->getFilteredTableQuery()->lazy(), $columns),
+                fn () => self::writeCsv($livewire->getFilteredTableQuery()->limit(self::MAX_ROWS)->lazy(), $columns),
                 $filename . '.csv',
                 ['Content-Type' => 'text/csv; charset=UTF-8'],
             ));
@@ -40,6 +47,7 @@ class ExportCsvAction
     public static function writeCsv(iterable $records, array $columns): void
     {
         $handle = fopen('php://output', 'w');
+        fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel (Windows) renders Arabic instead of mojibake
         fputcsv($handle, array_keys($columns));
 
         foreach ($records as $record) {
@@ -71,7 +79,11 @@ class ExportCsvAction
 
         $string = (string) $value;
 
-        if ($string !== '' && in_array($string[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+        // Neutralize formula injection — but NOT for plain numbers: a spreadsheet never treats a bare
+        // number (e.g. -500 or +3) as a formula, and prefixing an apostrophe would turn a negative
+        // ledger amount into text.
+        if ($string !== '' && ! is_numeric($string)
+            && in_array($string[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
             $string = "'" . $string;
         }
 

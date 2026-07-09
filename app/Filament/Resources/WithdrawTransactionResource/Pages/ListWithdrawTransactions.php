@@ -4,7 +4,6 @@ namespace App\Filament\Resources\WithdrawTransactionResource\Pages;
 
 use App\Enums\TransactionType;
 use App\Filament\Resources\WithdrawTransactionResource;
-use App\Models\Product;
 use App\Models\Transaction;
 use Filament\Actions;
 use Filament\Resources\Components\Tab;

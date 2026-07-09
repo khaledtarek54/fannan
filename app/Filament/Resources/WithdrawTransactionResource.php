@@ -94,7 +94,7 @@ class WithdrawTransactionResource extends Resource
             ->actions([
 //                Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('markCompleted')
-                    ->label('Mark as Completed')
+                    ->label(trans('app.mark_as_completed'))
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
                     // [DASH-P2] Confirm the admin's own password before settling a payout, so a
@@ -104,7 +104,11 @@ class WithdrawTransactionResource extends Resource
                     ->form(static::passwordConfirmField())
                     ->color('success')
                     ->action(function ($record) {
-                        $record->update(['is_completed' => 1]);
+                        // [DASH-P3 review] server-side type guard: only ever settle WITHDRAW rows,
+                        // even if the table scope changes (mirrors the create path).
+                        if ($record->type === TransactionType::WITHDRAW->value) {
+                            $record->update(['is_completed' => 1]);
+                        }
                     })
                     ->visible(fn($record) => $record->is_completed == 0),
             ])
@@ -118,7 +122,7 @@ class WithdrawTransactionResource extends Resource
                         ->form(static::passwordConfirmField())
                         ->action(function ( $records) {
                             foreach ($records as $record) {
-                                if ($record->is_completed == 0) {
+                                if ($record->is_completed == 0 && $record->type === TransactionType::WITHDRAW->value) {
                                     $record->update(['is_completed' => 1]);
                                 }
                             }

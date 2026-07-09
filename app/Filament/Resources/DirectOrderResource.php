@@ -198,7 +198,10 @@ class DirectOrderResource extends Resource
                 // previously missing. Uses spatie's currentStatus scope (matches the status_value column).
                 SelectFilter::make('status')
                     ->label(trans('app.status'))
+                    // counter_offer is a DERIVED status (never persisted via setStatus), so currentStatus()
+                    // would return no rows for it — exclude it from the options.
                     ->options(collect(OrderStatus::cases())
+                        ->reject(fn (OrderStatus $s) => $s === OrderStatus::COUNTER_OFFER)
                         ->mapWithKeys(fn (OrderStatus $s) => [$s->value => ucfirst(str_replace('_', ' ', $s->value))])
                         ->all())
                     ->query(fn (Builder $query, array $data) => filled($data['value'])
@@ -260,7 +263,8 @@ class DirectOrderResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return Order::query()->where('type', OrderType::DIRECT->value)
-            ->with(['client', 'artist', 'address.city']) // avoid N+1 on the list's name/city columns
+            // avoid N+1 on the name/city columns and the status_value accessor (reads offers + statuses)
+            ->with(['client', 'artist', 'address.city', 'offers', 'statuses'])
             ->orderByDesc('id');
     }
 

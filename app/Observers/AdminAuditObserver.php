@@ -9,9 +9,14 @@ use Illuminate\Support\Facades\Log;
 /**
  * [DASH-P2] Records privileged admin actions. Attached (in AppServiceProvider) to the security- and
  * money-relevant models. It writes a log row ONLY when the acting user is an authenticated admin on
- * the default (web/session) guard — i.e. someone operating the Filament panel. The mobile API
- * authenticates on the 'api' (Passport) guard, so auth()->user() is null there and API traffic is
- * never logged and never affected. Writing to a separate table cannot change any API response.
+ * the explicit WEB (session) guard — i.e. someone operating the Filament panel.
+ *
+ * NB: we gate on auth('web'), NOT the ambient auth()->user(). The `auth:api` middleware calls
+ * Auth::shouldUse('api'), which switches the DEFAULT guard to Passport for the rest of the request —
+ * so auth()->user() would resolve an API-authenticated admin (admins share the users table and can
+ * log into the mobile app), and the observer would fire on API model writes (e.g. update fcm_token).
+ * The web guard is cookie/session-based, so a token-only API request never authenticates it and
+ * auth('web')->user() stays null there. That keeps API traffic truly un-logged and un-affected.
  */
 class AdminAuditObserver
 {
@@ -53,7 +58,10 @@ class AdminAuditObserver
 
     private function log(string $event, Model $model, array $properties): void
     {
-        $admin = auth()->user();
+        // Explicit web guard: the API's auth:api flips the DEFAULT guard to 'api' mid-request, so
+        // auth()->user() (ambient) would resolve an API-authenticated admin and log on API writes.
+        // auth('web') is session-based and stays null for token-only API requests.
+        $admin = auth('web')->user();
         if (! $admin || ! ($admin->is_admin ?? false)) {
             return; // not a panel admin acting → don't log (covers all API traffic)
         }

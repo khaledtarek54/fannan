@@ -50,6 +50,26 @@ class ExportCsvTest extends TestCase
         $this->assertStringContainsString('42', $csv);
     }
 
+    public function test_the_csv_starts_with_a_utf8_bom_so_excel_renders_arabic(): void
+    {
+        Transaction::factory()->income()->create();
+
+        $csv = $this->csv(Transaction::query()->get(), ['Type' => fn ($r) => $r->type]);
+
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $csv, 'CSV must start with a UTF-8 BOM');
+    }
+
+    public function test_negative_numbers_are_not_quoted_as_text(): void
+    {
+        Transaction::factory()->income()->create();
+
+        // A bare negative number is never a spreadsheet formula, so it must NOT get a leading apostrophe.
+        $csv = $this->csv(Transaction::query()->get(), ['Amount' => fn ($r) => -500]);
+
+        $this->assertStringContainsString('-500', $csv);
+        $this->assertStringNotContainsString("'-500", $csv);
+    }
+
     public function test_null_values_become_empty_cells(): void
     {
         Transaction::factory()->income()->create(['amount' => 10]);

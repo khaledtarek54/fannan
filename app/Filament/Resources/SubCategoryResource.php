@@ -4,6 +4,9 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SubCategoryResource\Pages;
 use App\Filament\Resources\SubCategoryResource\RelationManagers;
+use App\Models\BiddingOrderArtist;
+use App\Models\OrderCategory;
+use App\Models\OrderOffer;
 use App\Models\SubCategory;
 use App\Models\UserCategory;
 use Filament\Forms;
@@ -96,7 +99,17 @@ class SubCategoryResource extends Resource
     /** [DASH-P1 review] How many artist specializations point at the given subcategory ids. */
     protected static function usageCount(array $subcategoryIds): int
     {
-        return UserCategory::whereIn('subcategory_id', $subcategoryIds)->count();
+        if ($subcategoryIds === []) {
+            return 0;
+        }
+
+        // Every table that references sub_categories.subcategory_id. user_categories is onDelete('set
+        // null') (silent artist-specialization loss); the other three are RESTRICT FKs (a delete would
+        // throw a raw DB error). Blocking on any reference gives the admin a friendly message either way.
+        return UserCategory::whereIn('subcategory_id', $subcategoryIds)->count()
+            + OrderCategory::whereIn('subcategory_id', $subcategoryIds)->count()
+            + OrderOffer::whereIn('subcategory_id', $subcategoryIds)->count()
+            + BiddingOrderArtist::whereIn('subcategory_id', $subcategoryIds)->count();
     }
 
     public static function getRelations(): array

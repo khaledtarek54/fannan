@@ -130,7 +130,9 @@ class BiddingOrderResource extends Resource
                 // [DASH-P3] give the bidding list the filters it lacked: current status, client, date.
                 Tables\Filters\SelectFilter::make('status')
                     ->label(trans('app.status'))
+                    // counter_offer is a DERIVED status (never persisted), so exclude it — currentStatus() can't match it.
                     ->options(collect(OrderStatus::cases())
+                        ->reject(fn (OrderStatus $s) => $s === OrderStatus::COUNTER_OFFER)
                         ->mapWithKeys(fn (OrderStatus $s) => [$s->value => ucfirst(str_replace('_', ' ', $s->value))])
                         ->all())
                     ->query(fn (Builder $query, array $data) => filled($data['value'])
@@ -169,8 +171,10 @@ class BiddingOrderResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        // [DASH-P3 review] eager-load offers + statuses too: the status_value column's accessor reads
+        // $this->offers->last() and the spatie status relation, so without these it N+1s per row.
         return Order::query()->where('type', OrderType::BIDDING)
-            ->orderByDesc('id')->with(['biddingOrderArtists.artist', 'client', 'address.city']);
+            ->orderByDesc('id')->with(['biddingOrderArtists.artist', 'client', 'address.city', 'offers', 'statuses']);
     }
 
     public static function getPages(): array

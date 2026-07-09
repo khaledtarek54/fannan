@@ -117,7 +117,11 @@ class InvoiceResource extends Resource
                     trans('app.number') => fn (Order $r) => $r->number,
                     trans('app.client') => fn (Order $r) => $r->client?->name,
                     trans('app.artist') => fn (Order $r) => $r->artist?->name,
-                    trans('app.total') => fn (Order $r) => $r->total_cost,
+                    // compute from the eager-loaded relations (mirrors Order::total_cost) so a large
+                    // export doesn't re-query acceptedBiddingOrderArtists()->get() per bidding row.
+                    trans('app.total') => fn (Order $r) => (float) ($r->type === OrderType::DIRECT->value
+                        ? ($r->offers->last()?->cost ?? $r->cost)
+                        : $r->acceptedBiddingOrderArtists->sum('cost')),
                     trans('app.payment_status') => fn (Order $r) => $r->is_paid ? trans('app.paid') : trans('app.unpaid'),
                     trans('app.issued_at') => fn (Order $r) => (string) $r->created_at,
                 ], 'invoices'),
@@ -127,11 +131,11 @@ class InvoiceResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        // [DASH-P3] Eager-load `offers` so the total_cost accessor (which reads $this->offers->last()
-        // for direct orders) doesn't fire a query per row on this whole-table finance list. The
-        // bidding branch of the accessor re-queries via ->get() and can't be fixed here without
-        // touching the shared Order model (which the API uses), so it's left as-is.
-        return Order::query()->with(['client', 'artist', 'offers']);
+        // [DASH-P3] Eager-load the relations the total is computed from (offers for direct,
+        // acceptedBiddingOrderArtists for bidding). The list column uses the total_cost accessor
+        // (offers loaded → no N+1 for direct); the CSV export computes the total from these loaded
+        // relations directly (see the export closure) so it doesn't re-query per bidding row.
+        return Order::query()->with(['client', 'artist', 'offers', 'acceptedBiddingOrderArtists']);
     }
 
     public static function getPages(): array
