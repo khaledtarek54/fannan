@@ -51,19 +51,32 @@ class CouponResource extends Resource
                         Forms\Components\Select::make('type')
                             ->options(CouponType::class)
                             ->required()
+                            ->live() // so the amount suffix/validation reacts to fixed vs percentage
                             ->searchable(),
+                        // [DASH-P3] amount was ->required() only, so an admin could set a negative or
+                        // >100% discount. Bound it: numeric, >= 0, and <= 100 for percentage coupons.
                         Forms\Components\TextInput::make('amount')
                             ->label(trans('app.amount'))
-                            ->required(),
+                            ->numeric()
+                            ->minValue(0)
+                            ->required()
+                            ->suffix(fn (Forms\Get $get) => $get('type') === CouponType::PERCENTAGE->value ? '%' : currency_code())
+                            ->rule(fn (Forms\Get $get) => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                if ($get('type') === CouponType::PERCENTAGE->value && (float) $value > 100) {
+                                    $fail('A percentage coupon cannot exceed 100%.');
+                                }
+                            }),
                         Forms\Components\TextInput::make('code')
                             ->label(trans('app.coupon_code'))
-                            ->required(),
+                            ->required()
+                            ->unique(ignoreRecord: true), // [DASH-P3] no more raw 500 on a duplicate code
                         Forms\Components\DateTimePicker::make('start_date')
                             ->label(trans('app.start_date'))
                             ->required(),
                         Forms\Components\DateTimePicker::make('end_date')
                             ->label(trans('app.end_date'))
-                            ->required(),
+                            ->required()
+                            ->after('start_date'), // [DASH-P3] end must be after start
                     ])
             ]);
     }
@@ -78,12 +91,33 @@ class CouponResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('amount')
                     ->label(trans('app.amount'))
+                    // [DASH-P3] show the amount with its unit (20% vs 20 EGP) so it isn't a bare number.
+                    // NB: Coupon casts `type` to the CouponType enum, so compare enum-to-enum here
+                    // (the form's $get('type') is a raw string — different path).
+                    ->formatStateUsing(fn ($state, Coupon $record) => $record->type?->value === CouponType::PERCENTAGE->value
+                        ? $state . '%'
+                        : money((float) $state))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('code')
                     ->label(trans('app.coupon_code'))
                     ->sortable()
                     ->searchable(),
+                // [DASH-P3] at-a-glance validity + how many times the coupon has been redeemed.
+                Tables\Columns\TextColumn::make('status')
+                    ->label(trans('app.status'))
+                    ->badge()
+                    ->getStateUsing(fn (Coupon $record): string => self::validityStatus($record))
+                    ->color(fn (string $state): string => match ($state) {
+                        'active' => 'success',
+                        'scheduled' => 'info',
+                        'expired' => 'danger',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state) => trans('app.' . $state)),
+                Tables\Columns\TextColumn::make('coupon_users_count')
+                    ->label(trans('app.uses'))
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('start_date')
                     ->dateTime()
                     ->label(trans('app.start_date'))
@@ -133,6 +167,25 @@ class CouponResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        // [DASH-P3] load the redemption count for the "Uses" column in one query (no N+1).
+        return parent::getEloquentQuery()->withCount('couponUsers');
+    }
+
+    /** [DASH-P3] Validity relative to now: scheduled (not started) / expired (ended) / active. */
+    public static function validityStatus(Coupon $coupon): string
+    {
+        $now = now();
+        if ($coupon->start_date && $now->lt($coupon->start_date)) {
+            return 'scheduled';
+        }
+        if ($coupon->end_date && $now->gt($coupon->end_date)) {
+            return 'expired';
+        }
+        return 'active';
     }
 
     public static function getRelations(): array
