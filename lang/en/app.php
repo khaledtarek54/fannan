@@ -62,6 +62,7 @@ return [
     "end_date" => "End Date",
     "coupon_date_not_valid" => "The coupon is not valid within the current date range.",
     "orders" => "Events",
+    "ratings" => "Ratings",
     "order" => "Event",
     "direct_orders" => "Direct Events",
     "direct_order" => "Direct event",

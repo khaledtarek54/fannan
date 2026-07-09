@@ -150,9 +150,24 @@ class ArtistResource extends Resource
                 Tables\Columns\TextColumn::make('platform_fees')
                     ->label(trans('app.setting.platform_fees'))
                     ->searchable(),
+                // [DASH-P3] surface the artist's review + order volume at a glance.
+                Tables\Columns\TextColumn::make('ratings_count')
+                    ->label(trans('app.ratings'))
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('artist_orders_count')
+                    ->label(trans('app.orders'))
+                    ->sortable(),
             ])
             ->filters([
-                //
+                // [DASH-P3] the artist list had no filters at all. (Trashed/active is already covered by
+                // the Active/Deactivate tabs, so filter by the things the tabs don't: gender, city.)
+                Tables\Filters\SelectFilter::make('gender')
+                    ->label(trans('app.gender'))
+                    ->options(['male' => 'Male', 'female' => 'Female']),
+                Tables\Filters\SelectFilter::make('city_id')
+                    ->label(trans('app.city'))
+                    ->searchable()
+                    ->options(fn () => City::pluck('name', 'id')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->icon(null)
@@ -218,7 +233,9 @@ class ArtistResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return User::withTrashed()->where("role", UserRole::ARTIST->value);
+        // [DASH-P3] load review + order counts in one query for the list columns (no N+1).
+        return User::withTrashed()->where("role", UserRole::ARTIST->value)
+            ->withCount(['ratings', 'artistOrders']);
     }
 
     public static function getPages(): array
