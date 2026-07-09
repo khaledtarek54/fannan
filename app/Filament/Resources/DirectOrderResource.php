@@ -193,23 +193,35 @@ class DirectOrderResource extends Resource
                     })
             ])
             ->filters([
+                // [DASH-P3] Filter by the order's CURRENT status — the single most useful order filter,
+                // previously missing. Uses spatie's currentStatus scope (matches the status_value column).
+                SelectFilter::make('status')
+                    ->label(trans('app.status'))
+                    ->options(collect(OrderStatus::cases())
+                        ->mapWithKeys(fn (OrderStatus $s) => [$s->value => ucfirst(str_replace('_', ' ', $s->value))])
+                        ->all())
+                    ->query(fn (Builder $query, array $data) => filled($data['value'])
+                        ? $query->currentStatus($data['value'])
+                        : $query),
                 // orders has no city_id column — the city lives on the related address. Filter through
                 // the relationship (matches Order::scopeCity) instead of a nonexistent orders.city_id.
+                // [DASH-P3] lean pluck (SELECT name,id) instead of ::all()->pluck / ->get()->pluck,
+                // which hydrated whole tables on every list render.
                 SelectFilter::make('city_id')
                     ->label(trans('app.city'))
                     ->searchable()
-                    ->options(City::all()->pluck('name', 'id')->toArray())
+                    ->options(City::pluck('name', 'id')->toArray())
                     ->query(fn (Builder $query, array $data) => filled($data['value'])
                         ? $query->whereHas('address', fn (Builder $q) => $q->where('city_id', $data['value']))
                         : $query),
                 SelectFilter::make('client_id')
                     ->label(trans('app.client'))
                     ->searchable()
-                    ->options(User::client()->get()->pluck('name', 'id')),
+                    ->options(User::client()->pluck('name', 'id')),
                 SelectFilter::make('artist_id')
                     ->label(trans('app.artist'))
                     ->searchable()
-                    ->options(User::artist()->get()->pluck('name', 'id')),
+                    ->options(User::artist()->pluck('name', 'id')),
             ])
             ->actions([
 

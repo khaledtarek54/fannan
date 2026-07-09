@@ -97,7 +97,7 @@ class ArtistResource extends Resource
                         Select::make('city_id')
                             ->label(trans('app.city'))
                             ->searchable()
-                            ->options(City::get()->pluck('name', 'id')->toArray())
+                            ->options(City::pluck('name', 'id')->toArray())
                             ->required(),
                         Forms\Components\TextInput::make('vat_number')
                             ->rules(['digits_between:1,16']),

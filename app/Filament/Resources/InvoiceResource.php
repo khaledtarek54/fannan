@@ -112,7 +112,11 @@ class InvoiceResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return Order::query()->with(['client', 'artist']);
+        // [DASH-P3] Eager-load `offers` so the total_cost accessor (which reads $this->offers->last()
+        // for direct orders) doesn't fire a query per row on this whole-table finance list. The
+        // bidding branch of the accessor re-queries via ->get() and can't be fixed here without
+        // touching the shared Order model (which the API uses), so it's left as-is.
+        return Order::query()->with(['client', 'artist', 'offers']);
     }
 
     public static function getPages(): array

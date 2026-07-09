@@ -43,12 +43,12 @@ class AddressResource extends Resource
                         ->label(trans('app.client'))
                         ->searchable()
                         ->required()
-                        ->options(User::client()->get()->pluck('name', 'id')),
+                        ->options(User::client()->pluck('name', 'id')), // [DASH-P3] lean pluck (no whole-table hydration)
                     Select::make('city_id')
                         ->label(trans('app.city'))
                         ->searchable()
                         ->required()
-                        ->options(City::query()->get()->pluck('name', 'id')->toArray()),
+                        ->options(City::pluck('name', 'id')->toArray()),
                     TextInput::make('name')
                         ->label(trans('app.name'))
                         ->required(),
@@ -83,11 +83,11 @@ class AddressResource extends Resource
             ->filters([
                 SelectFilter::make('user_id')
                     ->label(trans('app.client'))
-                    ->options(User::client()->get()->pluck('name', 'id'))
+                    ->options(User::client()->pluck('name', 'id'))
                     ->multiple(),
                 SelectFilter::make('city_id')
                     ->label(trans('app.city'))
-                    ->options(City::all()->pluck('name', 'id'))
+                    ->options(City::pluck('name', 'id'))
                     ->multiple(),
             ])
             ->actions([
