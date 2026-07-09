@@ -5,8 +5,15 @@ namespace App\Providers;
 use App\Models\Ad;
 use App\Models\BiddingOrderArtist;
 use App\Models\Category;
+use App\Models\City;
+use App\Models\Coupon;
 use App\Models\Order;
+use App\Models\Rating;
+use App\Models\Setting;
+use App\Models\SubCategory;
+use App\Models\Transaction;
 use App\Models\User;
+use App\Observers\AdminAuditObserver;
 use App\Observers\UpdateBiddingOrderStatus;
 use App\Services\Concerns\AddressRepository;
 use App\Services\Concerns\AdRepository;
@@ -82,6 +89,15 @@ class AppServiceProvider extends ServiceProvider
         // User.is_admin/role/wallet, UserTransaction.is_paid/status, Setting.value, …). Each model
         // now enforces its own $fillable again. See docs/SECURITY_ISSUES_ROUND2.md R2-C4.
         BiddingOrderArtist::observe(UpdateBiddingOrderStatus::class);
+
+        // [DASH-P2] Admin audit trail. AdminAuditObserver only writes when a panel admin (is_admin,
+        // web guard) is the actor, so mobile-API model changes are never logged and never affected.
+        foreach ([
+            User::class, Transaction::class, Setting::class, Coupon::class,
+            Rating::class, City::class, Category::class, SubCategory::class,
+        ] as $auditable) {
+            $auditable::observe(AdminAuditObserver::class);
+        }
 
 
 //        Model::shouldBeStrict($this->app->environment('local'));

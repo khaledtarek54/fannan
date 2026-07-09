@@ -72,11 +72,15 @@ class CityResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // [DASH-P2] City has no soft-deletes; deleting it is permanent and can orphan users,
+                // orders and addresses that reference it. Make the confirmation say so.
+                Tables\Actions\DeleteAction::make()
+                    ->modalDescription('This permanently deletes the city and can orphan users, orders and addresses that reference it. This cannot be undone.'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->modalDescription('This permanently deletes the selected cities and can orphan users, orders and addresses. This cannot be undone.'),
                 ]),
             ])
             ->emptyStateActions([

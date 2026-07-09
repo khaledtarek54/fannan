@@ -97,6 +97,11 @@ class WithdrawTransactionResource extends Resource
                     ->label('Mark as Completed')
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
+                    // [DASH-P2] Confirm the admin's own password before settling a payout, so a
+                    // walked-away or hijacked session can't move money. current_password validates
+                    // against the authenticated (web-guard) admin. (The settlement itself — the
+                    // is_completed change on Transaction — is captured by AdminAuditObserver.)
+                    ->form(static::passwordConfirmField())
                     ->color('success')
                     ->action(function ($record) {
                         $record->update(['is_completed' => 1]);
@@ -110,6 +115,7 @@ class WithdrawTransactionResource extends Resource
                         ->label('Mark as Completed')
                         ->icon('heroicon-o-check')
                         ->requiresConfirmation()
+                        ->form(static::passwordConfirmField())
                         ->action(function ( $records) {
                             foreach ($records as $record) {
                                 if ($record->is_completed == 0) {
@@ -121,6 +127,19 @@ class WithdrawTransactionResource extends Resource
                 ]),
 
             ]);
+    }
+
+    /** [DASH-P2] Modal field that re-confirms the acting admin's password before a money action. */
+    protected static function passwordConfirmField(): array
+    {
+        return [
+            TextInput::make('admin_password')
+                ->label('Confirm your password')
+                ->password()
+                ->required()
+                ->dehydrated(false) // never persisted; just a gate
+                ->rule('current_password'), // validates against the authenticated admin
+        ];
     }
 
     public static function getRelations(): array

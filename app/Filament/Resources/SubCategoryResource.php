@@ -56,11 +56,15 @@ class SubCategoryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // [DASH-P2] SubCategory has no soft-deletes; deleting it is permanent and nulls the
+                // specialization of every artist tied to it (user_categories onDelete set null).
+                Tables\Actions\DeleteAction::make()
+                    ->modalDescription('This permanently deletes the subcategory and clears the specialization of every artist tied to it. This cannot be undone.'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->modalDescription('This permanently deletes the selected subcategories and clears the specialization of every artist tied to them. This cannot be undone.'),
                 ]),
             ])
             ->emptyStateActions([
