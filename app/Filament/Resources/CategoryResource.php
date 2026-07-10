@@ -77,7 +77,7 @@ class CategoryResource extends Resource
                 TextColumn::make('name')
                     ->label(trans('app.name'))
                     ->searchable(),
-                ImageColumn::make('photo')->circular(),
+                ImageColumn::make('photo')->label(trans('app.photo'))->circular(),
 
             ])
             ->filters([

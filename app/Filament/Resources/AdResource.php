@@ -55,7 +55,8 @@ class AdResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label(trans('app.name'))
-                            ->required(),
+                            ->required()
+                            ->maxLength(255),
                         FileUpload::make('image')
                             ->label(trans('app.photo'))
                             ->required()

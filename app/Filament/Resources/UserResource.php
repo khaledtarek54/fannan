@@ -54,7 +54,9 @@ class UserResource extends Resource
                     ->columns(2)
                     ->schema([
                         TextInput::make('name')
-                            ->required(),
+                            ->label(trans('app.name'))
+                            ->required()
+                            ->maxLength(255),
                         PhoneInput::make('phone')
                             ->required()
                             ->countryStatePath('country_code')
@@ -68,10 +70,13 @@ class UserResource extends Resource
                                 fn($get) => new UniquePhoneNumber( $get('recordId')),
                             ]),
                         TextInput::make('email')
+                            ->label(trans('app.email'))
                             ->email()
+                            ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->required(),
                         TextInput::make('password')
+                            ->label(trans('app.password'))
                             ->password()
                             ->revealable()
                             ->minLength(6) // was ->minValue(6): a numeric rule that never fired on a string
@@ -82,7 +87,10 @@ class UserResource extends Resource
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn($context) => $context === 'create')
                             ->hiddenOn(['view']),
-                        DatePicker::make('dob'), // [DASH-P1] optional — was a needless create blocker for an admin account
+                        DatePicker::make('dob') // [DASH-P1] optional — was a needless create blocker for an admin account
+                            ->label(trans('app.dob'))
+                            ->native(false)
+                            ->maxDate(now()), // a birthdate can't be in the future
 //                        Select::make('gender')
 //                            ->options([
 //                                'male' => 'Male',
@@ -100,7 +108,7 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('name')->label(trans('app.name'))->searchable(),
                 Tables\Columns\TextColumn::make('email')->label(trans('app.email'))->searchable(),
                 PhoneColumn::make('phone')->label(trans('app.phone'))->searchable(),
-                Tables\Columns\TextColumn::make('dob')->date(),
+                Tables\Columns\TextColumn::make('dob')->label(trans('app.dob'))->date(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),

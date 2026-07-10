@@ -95,6 +95,7 @@ class BiddingOrderResource extends Resource
                         DateTimePicker::make('end_date')
                             ->label(trans('app.end_date'))
                             ->required()
+                            ->after('start_date') // event must end after it starts
                             ->hiddenOn(['view']),
                     ]),
             ]);

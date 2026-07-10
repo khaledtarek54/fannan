@@ -56,14 +56,18 @@ class CompletedSupportResource extends Resource
                 Section::make()->columns(2)->schema([
                     TextInput::make('name')
                         ->label(trans('app.name'))
-                        ->required(),
+                        ->required()
+                        ->maxLength(255),
                     TextInput::make('phone')
                         ->label(trans('app.phone'))
-                        ->required(),
+                        ->tel()
+                        ->required()
+                        ->maxLength(255),
                     TextInput::make('email')
                         ->label(trans('app.email'))
                         ->email()
-                        ->required(),
+                        ->required()
+                        ->maxLength(255),
                     Forms\Components\Textarea::make('description')
                         ->label(trans('app.description'))
                         ->required(),
@@ -93,8 +97,8 @@ class CompletedSupportResource extends Resource
             ])
             ->actions([
                 Action::make('view')
-                    ->label('View')
-                    ->modalHeading('User Messages')
+                    ->label(trans('app.view'))
+                    ->modalHeading(trans('app.user_messages'))
                     ->modalWidth(MaxWidth::ScreenLarge)
                     ->modalSubmitAction(false)
                     ->modalCancelAction(fn (StaticAction $action) => $action->label('Close'))

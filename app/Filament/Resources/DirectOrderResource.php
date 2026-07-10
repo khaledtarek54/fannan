@@ -133,6 +133,7 @@ class DirectOrderResource extends Resource
                         DateTimePicker::make('end_date')
                             ->label(trans('app.end_date'))
                             ->required()
+                            ->after('start_date') // event must end after it starts
                             ->visibleOn(['create']),
                         TextInput::make('cost')
                             ->label(trans('app.cost'))

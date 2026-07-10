@@ -43,12 +43,12 @@ class ArtistGalleryResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
-                    ->label('Artist')
+                    ->label(trans('app.artist'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('type')
-                    ->label('Type'),
+                    ->label(trans('app.type')),
                 ImageColumn::make('video_url')
-                    ->label('File')
+                    ->label(trans('app.file'))
                     ->checkFileExistence(false)
                     ->url(fn($record) => url($record->video))
                     ->openUrlInNewTab()

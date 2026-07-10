@@ -200,4 +200,18 @@ return [
     'body' => 'المحتوى',
     'dob' => 'تاريخ الميلاد',
     'gender' => 'الجنس',
+
+    // Labels for admin form fields / actions that were previously hardcoded in English.
+    'password' => 'كلمة المرور',
+    'male' => 'ذكر',
+    'female' => 'أنثى',
+    'iban' => 'الآيبان',
+    'vat_number' => 'الرقم الضريبي',
+    'cr_number' => 'رقم السجل التجاري',
+    'view' => 'عرض',
+    'new_value' => 'القيمة الجديدة',
+    'edit_fees' => 'تعديل الرسوم',
+    'reply_message' => 'رسالة الرد',
+    'user_messages' => 'رسائل المستخدم',
+    'file' => 'الملف',
 ];

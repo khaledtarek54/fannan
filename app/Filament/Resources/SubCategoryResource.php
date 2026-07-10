@@ -53,8 +53,8 @@ class SubCategoryResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('category.name')->label("Category Name"),
-                TextColumn::make('name'),
+                TextColumn::make('category.name')->label(trans('app.category')),
+                TextColumn::make('name')->label(trans('app.name')),
             ])
             ->filters([
                 //

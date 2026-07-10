@@ -203,4 +203,17 @@ return [
     'dob' => 'Birthdate',
     'gender' => 'Gender',
 
+    // Labels for admin form fields / actions that were previously hardcoded in English.
+    'password' => 'Password',
+    'male' => 'Male',
+    'female' => 'Female',
+    'iban' => 'IBAN',
+    'vat_number' => 'VAT Number',
+    'cr_number' => 'CR Number',
+    'view' => 'View',
+    'new_value' => 'New Value',
+    'edit_fees' => 'Edit Fees',
+    'reply_message' => 'Reply Message',
+    'user_messages' => 'User Messages',
+    'file' => 'File',
 ];

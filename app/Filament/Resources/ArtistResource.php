@@ -64,7 +64,9 @@ class ArtistResource extends Resource
                     ->columns(2)
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->required(),
+                            ->label(trans('app.name'))
+                            ->required()
+                            ->maxLength(255),
                         PhoneInput::make('phone')
                             ->required()
                             ->countryStatePath('country_code')
@@ -78,21 +80,36 @@ class ArtistResource extends Resource
                                 fn($get) => new UniquePhoneNumber($get('recordId')),
                             ]),
                         Forms\Components\TextInput::make('email')
+                            ->label(trans('app.email'))
                             ->email()
+                            ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->required(),
+                        // Mirror UserResource: mask the password, allow reveal, enforce a minimum
+                        // length, and let an admin optionally reset it on edit. User::setPasswordAttribute()
+                        // always Hash::make()s whatever it receives, so keep an empty submit out of the
+                        // payload (filled()) — a blank field must not overwrite the existing password.
                         Forms\Components\TextInput::make('password')
-                            ->hiddenOn(['view', 'edit'])
-                            ->required(),
+                            ->label(trans('app.password'))
+                            ->password()
+                            ->revealable()
+                            ->minLength(6)
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->required(fn ($context) => $context === 'create')
+                            ->hiddenOn(['view']),
                         Forms\Components\DatePicker::make('dob')
+                            ->label(trans('app.dob'))
+                            ->native(false)
+                            ->maxDate(now()) // a birthdate can't be in the future
                             ->required(),
                         Forms\Components\Select::make('gender')
+                            ->label(trans('app.gender'))
                             ->searchable()
                             // [DASH-P1] The gender column is enum('male','female') — offering 'other'
                             // errored on strict MySQL or stored '' and corrupted the record.
                             ->options([
-                                'male' => 'Male',
-                                'female' => 'Female',
+                                'male' => trans('app.male'),
+                                'female' => trans('app.female'),
                             ]),
                         Select::make('city_id')
                             ->label(trans('app.city'))
@@ -100,10 +117,13 @@ class ArtistResource extends Resource
                             ->options(City::pluck('name', 'id')->toArray())
                             ->required(),
                         Forms\Components\TextInput::make('vat_number')
+                            ->label(trans('app.vat_number'))
                             ->rules(['digits_between:1,16']),
                         Forms\Components\TextInput::make('cr_number')
+                            ->label(trans('app.cr_number'))
                             ->rules(['digits_between:1,16']),
                         Forms\Components\TextInput::make('iban')
+                            ->label(trans('app.iban'))
                             ->required()
                             ->rules([new Iban()]),
                         FileUpload::make('profile_photo')
@@ -113,16 +133,21 @@ class ArtistResource extends Resource
                         PhoneInput::make('whatsapp')
                             ->nullable(),
                         Forms\Components\TextInput::make('instagram')
+                            ->maxLength(512)
                             ->nullable(),
                         Forms\Components\TextInput::make('facebook')
+                            ->maxLength(512)
                             ->nullable(),
                         Forms\Components\TextInput::make('snapchat')
+                            ->maxLength(512)
                             ->nullable(),
-                        // [DASH-P1] The column was renamed twiteer -> youtube (migration 2026_02_20)
-                        // and only 'youtube' is in User::$fillable, so the old make('twiteer') field
-                        // silently dropped the value. Map to the real, fillable column.
+                        // The DB column is named `youtube` (renamed from `twiteer` in migration
+                        // 2026_02_20) but it holds the artist's X / Twitter handle — the column name is
+                        // a leftover misnomer we can't rename without an API-affecting migration. The
+                        // label 'X' is the correct, current platform name.
                         Forms\Components\TextInput::make('youtube')
                             ->label('X')
+                            ->maxLength(512)
                             ->nullable(),
                     ])
             ]);
@@ -163,7 +188,7 @@ class ArtistResource extends Resource
                 // the Active/Deactivate tabs, so filter by the things the tabs don't: gender, city.)
                 Tables\Filters\SelectFilter::make('gender')
                     ->label(trans('app.gender'))
-                    ->options(['male' => 'Male', 'female' => 'Female']),
+                    ->options(['male' => trans('app.male'), 'female' => trans('app.female')]),
                 Tables\Filters\SelectFilter::make('city_id')
                     ->label(trans('app.city'))
                     ->searchable()
@@ -188,6 +213,11 @@ class ArtistResource extends Resource
                     ->form([
                         Forms\Components\TextInput::make('platform_fees')
                             ->label(trans('app.setting.platform_fees'))
+                            // this single-record action had NO validation (the bulk one did) — a
+                            // non-numeric entry reached the `double` column. Match the bulk rules.
+                            ->numeric()
+                            ->minValue(0)
+                            ->required()
                             ->default(fn(User $user) => $user->platform_fees) // Set the current value
                     ])
                     ->action(function (array $data, User $user) {
@@ -198,18 +228,20 @@ class ArtistResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                     BulkAction::make('edit_fees')
-                        ->label('Edit Fees')
+                        ->label(trans('app.edit_fees'))
                         ->icon('heroicon-o-pencil')
                         ->form([
                             TextInputAlias::make('platform_fees')
-                                ->label('New Value')
+                                ->label(trans('app.new_value'))
                                 ->minValue(0)
-                                ->integer()
+                                // ->numeric() not ->integer(): platform_fees is a `double`, so a
+                                // fractional fee (e.g. 12.5) must be allowed.
+                                ->numeric()
                                 ->required(),
                         ])
                         ->requiresConfirmation()
-                        ->modalHeading('Edit Fees')
-                        ->modalSubheading('Enter a new platform fees value.')
+                        ->modalHeading(trans('app.edit_fees'))
+                        ->modalSubheading(trans('app.new_value'))
                         ->action(function ($records, array $data) {
                             $platformFees = $data['platform_fees'];
                             foreach ($records as $record) {
