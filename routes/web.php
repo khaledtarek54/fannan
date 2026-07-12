@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\EasyKashController;
 use App\Http\Controllers\API\ArtistController;
 use App\Http\Controllers\API\SettingController;
 use App\Http\Controllers\InvoiceController;
@@ -21,7 +20,12 @@ if (app()->environment('local')) {
 }
 
 
-Route::get('payments/easykash/return', [EasyKashController::class, 'returnRedirect'])->name('easykash.return');
+// [CLEANUP] Removed the broken `payments/easykash/return` route: its controller
+// (App\Http\Controllers\EasyKashController@returnRedirect) never existed — it was baseline
+// scaffolding that 500s on hit and breaks `route:list`. The real EasyKash shopper-return URL is
+// the API endpoint `/api/easykash/callback` (see EASYKASH_REDIRECT_URL), whose GET branch redirects
+// to payment-success.html / payment-failed.html based on the record's stored state. Docs already
+// listed this route as removed (docs/api-reference.md).
 
 Route::get('privacy-policy', [SettingController::class, 'privacy'])->name('front.privacy');
 Route::get('terms', [SettingController::class, 'terms'])->name('front.terms');
