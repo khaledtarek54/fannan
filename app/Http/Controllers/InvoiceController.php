@@ -44,11 +44,16 @@ class InvoiceController extends Controller
             $pdf = $this->invoices->renderPdf($invoiceData);
             $fileName = $invoiceData['invoice_number'] . '.pdf';
 
-            return response()->streamDownload(
-                fn () => print($pdf),
-                $fileName,
-                ['Content-Type' => 'application/pdf']
-            );
+            // [FIX] Return the fully-rendered PDF as a normal response with an explicit
+            // Content-Length instead of a chunked StreamedResponse. Mobile download clients need
+            // Content-Length to save the file; streamDownload() omits it (chunked transfer), which
+            // silently breaks the download even though the server returns 200. The PDF is already
+            // in memory, so streaming buys nothing.
+            return response($pdf, 200, [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+                'Content-Length'      => (string) strlen($pdf),
+            ]);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
             throw $e; // [SECURITY] Preserve 403/404 — don't mask the ownership check as a 500 (H1).
         } catch (\Throwable $e) {
