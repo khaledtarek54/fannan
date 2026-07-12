@@ -223,9 +223,13 @@ class OrderService
      */
     private function settleOrder(Order $order): void
     {
+        // [FIX] Also match legacy morph aliases for the order's income rows. Older code wrote the
+        // polymorphic type as 'ORDER'/'order' instead of the FQCN, so a guard keyed only on
+        // Order::class missed those and paid the artist a SECOND time on completion. Match all
+        // three so a pre-existing payout — however it was labelled — blocks a duplicate.
         $alreadySettled = Transaction::query()
             ->where('type', TransactionType::INCOME->value)
-            ->where('model_type', Order::class)
+            ->whereIn('model_type', [Order::class, 'ORDER', 'order'])
             ->where('model_id', $order->id)
             ->exists();
         if ($alreadySettled) {

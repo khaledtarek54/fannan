@@ -53,6 +53,32 @@ class OrderSettlementTest extends TestCase
         $this->assertEquals(1, Transaction::where('user_id', $order->artist_id)->where('type', 'income')->count());
     }
 
+    public function test_a_legacy_aliased_payout_prevents_a_second_credit(): void
+    {
+        Setting::create(['type' => SettingKey::PLATFORM_FEES->value, 'value' => 20]);
+        $order = $this->withPastDate(Order::factory()->create(['cost' => 100, 'is_paid' => true]));
+
+        // A payout already exists for this order, but stored under the legacy morph alias 'ORDER'
+        // (older code wrote this instead of the FQCN). The completion job must recognise it and NOT
+        // pay the artist again. Guards the settleOrder double-pay bug found on prod (order 273).
+        Transaction::forceCreate([
+            'user_id' => $order->artist_id,
+            'type' => 'income',
+            'amount' => 80,
+            'model_type' => 'ORDER',
+            'model_id' => $order->id,
+            'is_completed' => false,
+        ]);
+
+        app(OrderService::class)->notifyCompletedOrders();
+
+        $this->assertEquals(
+            1,
+            Transaction::where('model_id', $order->id)->where('type', 'income')->count(),
+            'legacy ORDER-aliased payout should block a second credit'
+        );
+    }
+
     public function test_an_unpaid_order_is_never_settled(): void
     {
         Setting::create(['type' => SettingKey::PLATFORM_FEES->value, 'value' => 20]);
