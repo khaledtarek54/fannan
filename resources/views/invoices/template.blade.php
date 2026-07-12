@@ -158,11 +158,17 @@
     <table class="header-table">
         <tr>
             <td width="90" style="vertical-align:top;">
-                <div class="logo-box">
-                    @if (!empty($logo_white_src))
-                        <img src="{{ $logo_white_src }}" width="48" style="margin-top:20px;" alt="Fannan">
-                    @endif
-                </div>
+                @if (!empty($logo_invoice_src))
+                    {{-- Real full-colour brand logo (has its own background). --}}
+                    <img src="{{ $logo_invoice_src }}" width="66" height="66" style="border-radius:14px;" alt="Fannan">
+                @else
+                    {{-- Fallback: constructed pink box + white mark. --}}
+                    <div class="logo-box">
+                        @if (!empty($logo_white_src))
+                            <img src="{{ $logo_white_src }}" width="48" style="margin-top:20px;" alt="Fannan">
+                        @endif
+                    </div>
+                @endif
             </td>
             <td align="center" style="vertical-align:middle;">
                 <div class="doc-title">INVOICE</div>

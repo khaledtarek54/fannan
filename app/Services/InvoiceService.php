@@ -209,6 +209,9 @@ class InvoiceService
     private function invoiceAssets(): array
     {
         return [
+            // Full-colour brand logo used in the invoice header (falls back to the constructed
+            // pink-box + white mark in the template when this file is absent).
+            'logo_invoice_src' => $this->asDataUri(public_path('images/logo-invoice.png')),
             'logo_white_src' => $this->asDataUri(public_path('images/logo-white.png')),
             'logo_gold_src' => $this->asDataUri(public_path('images/logo-gold.png')),
         ];
