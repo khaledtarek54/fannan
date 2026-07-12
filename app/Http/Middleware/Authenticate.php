@@ -12,6 +12,14 @@ class Authenticate extends Middleware
      */
     protected function redirectTo(Request $request): ?string
     {
-        return $request->expectsJson() ? null : route('login');
+        // The API is stateless / token-based — never redirect an unauthenticated API request to a
+        // `login` page. This app has no `login` route, so calling route('login') here threw
+        // RouteNotFoundException (surfacing as a 500) for any api/* request that wasn't asking for
+        // JSON. Returning null lets it render as a clean 401 (see App\Exceptions\Handler).
+        if ($request->is('api/*') || $request->expectsJson()) {
+            return null;
+        }
+
+        return route('login');
     }
 }
