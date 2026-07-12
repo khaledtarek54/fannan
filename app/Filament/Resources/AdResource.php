@@ -55,13 +55,18 @@ class AdResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label(trans('app.name'))
-                            ->required(),
+                            ->required()
+                            ->maxLength(255),
                         FileUpload::make('image')
                             ->label(trans('app.photo'))
                             ->required()
+                            ->image() // [DASH-P3] restrict to images + a sane size cap (was unvalidated)
+                            ->maxSize(5120)
                             ->directory("ads"),
                         Forms\Components\TextInput::make('link')
-                            ->label(trans('app.link')),
+                            ->label(trans('app.link'))
+                            ->url() // [DASH-P3] validate it's a real URL (nullable — only checked when filled)
+                            ->maxLength(2048),
                         Forms\Components\MorphToSelect::make('adable')
                             ->label(trans('app.relation'))
                             ->types([
@@ -95,9 +100,7 @@ class AdResource extends Resource
                         'success' => 'active',
                         'danger' => 'inactive',
                     ])
-                    ->formatStateUsing(function ($state) {
-                        return $state === 'active' ? 'Active' : 'Inactive';
-                    }),
+                    ->formatStateUsing(fn ($state) => $state === 'active' ? trans('app.active') : trans('app.inactive')),
                 TextColumn::make('created_at')
                     ->dateTime(),
                 TextColumn::make('adable.name'),
@@ -108,14 +111,18 @@ class AdResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                // [DASH-P3] confirm status changes. NB: this status is admin-facing only — making the
+                // mobile API actually hide inactive ads is the separate API-track change (AdQueryBuilder).
                 Tables\Actions\Action::make('active')
                     ->label(__('app.active'))
+                    ->requiresConfirmation()
                     ->visible(fn(Ad $ad) => $ad->status == "inactive")
                     ->action(function (array $data, Ad $ad) {
                         $ad->setStatus(AdStatus::ACTIVE->value);
                     }),
                 Tables\Actions\Action::make('inactive')
                     ->label(__('app.inactive'))
+                    ->requiresConfirmation()
                     ->visible(fn(Ad $ad) => $ad->status == "active")
                     ->action(function (array $data, Ad $ad) {
                         $ad->setStatus(AdStatus::INACTIVE->value);

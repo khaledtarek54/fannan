@@ -90,11 +90,14 @@ class ContactResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // [DASH-P2] Contact messages have no soft-deletes; deletion is permanent.
+                Tables\Actions\DeleteAction::make()
+                    ->modalDescription('This permanently deletes the contact message. This cannot be undone.'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->modalDescription('This permanently deletes the selected contact messages. This cannot be undone.'),
                 ]),
             ]);
     }

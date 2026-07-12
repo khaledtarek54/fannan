@@ -60,6 +60,12 @@ class CategoryResource extends Resource
                                 ]),
                         ])
                         ->defaultItems(1)
+                        // [DASH-P1] Removing a repeater row hard-deletes the SubCategory (no SoftDeletes),
+                        // and user_categories.subcategory_id is onDelete('set null') — so deleting one here
+                        // silently wipes the specialization of every artist tied to it. Disallow deletion
+                        // from this form; subcategories can still be added/renamed. Deletion needs a
+                        // dedicated, usage-checked action (a later phase).
+                        ->deletable(false)
                 ]),
             ]);
     }
@@ -71,7 +77,7 @@ class CategoryResource extends Resource
                 TextColumn::make('name')
                     ->label(trans('app.name'))
                     ->searchable(),
-                ImageColumn::make('photo')->circular(),
+                ImageColumn::make('photo')->label(trans('app.photo'))->circular(),
 
             ])
             ->filters([
@@ -94,7 +100,7 @@ class CategoryResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationGroup::make('Relations', [
+            RelationGroup::make(trans('app.relations'), [
                 UserCategoriesRelationManager::class,
             ]),
         ];

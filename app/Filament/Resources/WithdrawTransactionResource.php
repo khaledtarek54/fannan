@@ -94,12 +94,21 @@ class WithdrawTransactionResource extends Resource
             ->actions([
 //                Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('markCompleted')
-                    ->label('Mark as Completed')
+                    ->label(trans('app.mark_as_completed'))
                     ->icon('heroicon-o-check')
                     ->requiresConfirmation()
+                    // [DASH-P2] Confirm the admin's own password before settling a payout, so a
+                    // walked-away or hijacked session can't move money. current_password validates
+                    // against the authenticated (web-guard) admin. (The settlement itself — the
+                    // is_completed change on Transaction — is captured by AdminAuditObserver.)
+                    ->form(static::passwordConfirmField())
                     ->color('success')
                     ->action(function ($record) {
-                        $record->update(['is_completed' => 1]);
+                        // [DASH-P3 review] server-side type guard: only ever settle WITHDRAW rows,
+                        // even if the table scope changes (mirrors the create path).
+                        if ($record->type === TransactionType::WITHDRAW->value) {
+                            $record->update(['is_completed' => 1]);
+                        }
                     })
                     ->visible(fn($record) => $record->is_completed == 0),
             ])
@@ -107,12 +116,13 @@ class WithdrawTransactionResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
 //                    Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\BulkAction::make('bulkMarkCompleted')
-                        ->label('Mark as Completed')
+                        ->label(trans('app.mark_as_completed'))
                         ->icon('heroicon-o-check')
                         ->requiresConfirmation()
+                        ->form(static::passwordConfirmField())
                         ->action(function ( $records) {
                             foreach ($records as $record) {
-                                if ($record->is_completed == 0) {
+                                if ($record->is_completed == 0 && $record->type === TransactionType::WITHDRAW->value) {
                                     $record->update(['is_completed' => 1]);
                                 }
                             }
@@ -121,6 +131,19 @@ class WithdrawTransactionResource extends Resource
                 ]),
 
             ]);
+    }
+
+    /** [DASH-P2] Modal field that re-confirms the acting admin's password before a money action. */
+    protected static function passwordConfirmField(): array
+    {
+        return [
+            TextInput::make('admin_password')
+                ->label(trans('app.confirm_password'))
+                ->password()
+                ->required()
+                ->dehydrated(false) // never persisted; just a gate
+                ->rule('current_password'), // validates against the authenticated admin
+        ];
     }
 
     public static function getRelations(): array
@@ -142,7 +165,9 @@ class WithdrawTransactionResource extends Resource
         return [
             'index' => Pages\ListWithdrawTransactions::route('/'),
             'create' => Pages\CreateWithdrawTransaction::route('/create'),
-            'edit' => Pages\EditWithdrawTransaction::route('/{record}/edit'),
+            // [DASH-P1] No 'edit' route: a payout is immutable once created. The Edit page reused the
+            // create form with NO balance re-check, letting an admin rewrite a completed payout's
+            // amount/recipient and corrupt the artist's balance (which the API surfaces).
         ];
     }
 }

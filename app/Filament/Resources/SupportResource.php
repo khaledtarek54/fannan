@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\ModelName;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\SupportResource\Pages;
 use App\Models\Support;
 use Carbon\Carbon;
@@ -53,14 +54,18 @@ class SupportResource extends Resource
                 Section::make()->columns(2)->schema([
                     TextInput::make('name')
                         ->label(trans('app.name'))
-                        ->required(),
+                        ->required()
+                        ->maxLength(255),
                     TextInput::make('phone')
                         ->label(trans('app.phone'))
-                        ->required(),
+                        ->tel()
+                        ->required()
+                        ->maxLength(255),
                     TextInput::make('email')
                         ->label(trans('app.email'))
                         ->email()
-                        ->required(),
+                        ->required()
+                        ->maxLength(255),
                     Forms\Components\Textarea::make('description')
                         ->label(trans('app.description'))
                         ->required(),
@@ -84,9 +89,14 @@ class SupportResource extends Resource
                 TextColumn::make('description')
                     ->label(trans('app.description'))
                     ->searchable(),
+                // [DASH-P3] show when the ticket was opened, and allow sorting/filtering by it.
+                TextColumn::make('created_at')
+                    ->label(trans('app.created_at'))
+                    ->dateTime()
+                    ->sortable(),
             ])
             ->filters([
-                //
+                CreatedBetweenFilter::make(),
             ])
             ->actions([
                 Action::make('mark_as_complete')
@@ -102,13 +112,13 @@ class SupportResource extends Resource
                             ->update(['is_complete' => 1]);
                     }),
                 Action::make('view')
-                    ->label('View')
-                    ->modalHeading('User Messages')
+                    ->label(trans('app.view'))
+                    ->modalHeading(trans('app.user_messages'))
                     ->modalWidth(MaxWidth::ScreenLarge)
                     ->formId('chatContainer')
                     ->form([
                         TextInput::make('message')
-                            ->label('Reply Message')
+                            ->label(trans('app.reply_message'))
                             ->required(),
                     ])
                     ->action(function ($record, array $data) {

@@ -64,7 +64,18 @@ class TaxResource extends Resource
                             ->default(function ($record) {
                                 return $record ? $record->value_ar : '';
                             })
-                            ->required(),
+                            ->required()
+                            // [DASH-P1] For percentage RATE settings (tax/vat/platform_fees) enforce a
+                            // number 0–100. A non-numeric string used to (float)-cast to 0 and silently
+                            // zero the charge applied to live orders. call_center stays free text.
+                            ->rule(function ($record) {
+                                return function (string $attribute, $value, \Closure $fail) use ($record) {
+                                    if ($record && in_array($record->type, self::RATE_TYPES, true)
+                                        && (! is_numeric($value) || $value < 0 || $value > 100)) {
+                                        $fail('This rate must be a number between 0 and 100.');
+                                    }
+                                };
+                            }),
                     ]),
             ]);
     }
@@ -91,9 +102,23 @@ class TaxResource extends Resource
         ];
     }
 
+    /** [DASH-P1] Setting types shown here that are numeric percentage RATES (call_center is a phone, not a rate). */
+    protected const RATE_TYPES = [
+        SettingKey::TAX->value,
+        SettingKey::VAT->value,
+        SettingKey::PLATFORM_FEES->value,
+    ];
+
     public static function getEloquentQuery(): Builder
     {
-        return Setting::whereIn("type", [SettingKey::VAT->value, SettingKey::PLATFORM_FEES->value, SettingKey::CALL_CENTER->value]);
+        // [DASH-P1] Include SettingKey::TAX — OrderPricingService charges it on every order, but it
+        // was missing from this whitelist, so admins had no way to change the real tax rate.
+        return Setting::whereIn("type", [
+            SettingKey::TAX->value,
+            SettingKey::VAT->value,
+            SettingKey::PLATFORM_FEES->value,
+            SettingKey::CALL_CENTER->value,
+        ]);
     }
 
     public static function getPages(): array

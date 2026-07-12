@@ -116,7 +116,9 @@ class SettingResource extends Resource
     {
         return [
             'index' => Pages\ListSettings::route('/'),
-            'create' => Pages\CreateSetting::route('/create'),
+            // [DASH-P1] No 'create' route: creating a Setting here wrote a type=NULL row, which broke
+            // the mobile /settings response (SettingResource does trans('app.setting.'.$type)). Settings
+            // are a fixed, seeded whitelist — edit only.
             'edit' => Pages\EditSetting::route('/{record}/edit'),
         ];
     }

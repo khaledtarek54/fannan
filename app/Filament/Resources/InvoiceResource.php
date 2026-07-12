@@ -4,6 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Enums\OrderType;
 use App\Filament\Actions\DownloadInvoiceAction;
+use App\Filament\Actions\ExportCsvAction;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\InvoiceResource\Pages;
 use App\Models\Order;
 use App\Models\User;
@@ -103,16 +105,37 @@ class InvoiceResource extends Resource
                     ->label(trans('app.artist'))
                     ->searchable()
                     ->options(fn () => User::artist()->pluck('name', 'id')),
+                CreatedBetweenFilter::make(), // [DASH-P3] filter invoices by issue-date range
             ])
             ->actions([
                 DownloadInvoiceAction::make(),
+            ])
+            ->headerActions([
+                // [DASH-P3] export the currently filtered invoice list to CSV.
+                ExportCsvAction::make([
+                    trans('app.invoice_number') => fn (Order $r) => app(InvoiceService::class)->invoiceNumber($r),
+                    trans('app.number') => fn (Order $r) => $r->number,
+                    trans('app.client') => fn (Order $r) => $r->client?->name,
+                    trans('app.artist') => fn (Order $r) => $r->artist?->name,
+                    // compute from the eager-loaded relations (mirrors Order::total_cost) so a large
+                    // export doesn't re-query acceptedBiddingOrderArtists()->get() per bidding row.
+                    trans('app.total') => fn (Order $r) => (float) ($r->type === OrderType::DIRECT->value
+                        ? ($r->offers->last()?->cost ?? $r->cost)
+                        : $r->acceptedBiddingOrderArtists->sum('cost')),
+                    trans('app.payment_status') => fn (Order $r) => $r->is_paid ? trans('app.paid') : trans('app.unpaid'),
+                    trans('app.issued_at') => fn (Order $r) => (string) $r->created_at,
+                ], 'invoices'),
             ])
             ->defaultSort('id', 'desc');
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return Order::query()->with(['client', 'artist']);
+        // [DASH-P3] Eager-load the relations the total is computed from (offers for direct,
+        // acceptedBiddingOrderArtists for bidding). The list column uses the total_cost accessor
+        // (offers loaded → no N+1 for direct); the CSV export computes the total from these loaded
+        // relations directly (see the export closure) so it doesn't re-query per bidding row.
+        return Order::query()->with(['client', 'artist', 'offers', 'acceptedBiddingOrderArtists']);
     }
 
     public static function getPages(): array

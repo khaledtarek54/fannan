@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\DirectOrderResource\Pages;
 use App\Filament\Resources\DirectOrderResource\RelationManagers\CategoriesRelationManager;
 use App\Filament\Resources\DirectOrderResource\RelationManagers\DatesRelationManager;
@@ -132,6 +133,7 @@ class DirectOrderResource extends Resource
                         DateTimePicker::make('end_date')
                             ->label(trans('app.end_date'))
                             ->required()
+                            ->after('start_date') // event must end after it starts
                             ->visibleOn(['create']),
                         TextInput::make('cost')
                             ->label(trans('app.cost'))
@@ -193,23 +195,39 @@ class DirectOrderResource extends Resource
                     })
             ])
             ->filters([
+                // [DASH-P3] Filter by the order's CURRENT status — the single most useful order filter,
+                // previously missing. Uses spatie's currentStatus scope (matches the status_value column).
+                SelectFilter::make('status')
+                    ->label(trans('app.status'))
+                    // counter_offer is a DERIVED status (never persisted via setStatus), so currentStatus()
+                    // would return no rows for it — exclude it from the options.
+                    ->options(collect(OrderStatus::cases())
+                        ->reject(fn (OrderStatus $s) => $s === OrderStatus::COUNTER_OFFER)
+                        ->mapWithKeys(fn (OrderStatus $s) => [$s->value => ucfirst(str_replace('_', ' ', $s->value))])
+                        ->all())
+                    ->query(fn (Builder $query, array $data) => filled($data['value'])
+                        ? $query->currentStatus($data['value'])
+                        : $query),
                 // orders has no city_id column — the city lives on the related address. Filter through
                 // the relationship (matches Order::scopeCity) instead of a nonexistent orders.city_id.
+                // [DASH-P3] lean pluck (SELECT name,id) instead of ::all()->pluck / ->get()->pluck,
+                // which hydrated whole tables on every list render.
                 SelectFilter::make('city_id')
                     ->label(trans('app.city'))
                     ->searchable()
-                    ->options(City::all()->pluck('name', 'id')->toArray())
+                    ->options(City::pluck('name', 'id')->toArray())
                     ->query(fn (Builder $query, array $data) => filled($data['value'])
                         ? $query->whereHas('address', fn (Builder $q) => $q->where('city_id', $data['value']))
                         : $query),
                 SelectFilter::make('client_id')
                     ->label(trans('app.client'))
                     ->searchable()
-                    ->options(User::client()->get()->pluck('name', 'id')),
+                    ->options(User::client()->pluck('name', 'id')),
                 SelectFilter::make('artist_id')
                     ->label(trans('app.artist'))
                     ->searchable()
-                    ->options(User::artist()->get()->pluck('name', 'id')),
+                    ->options(User::artist()->pluck('name', 'id')),
+                CreatedBetweenFilter::make(), // [DASH-P3] filter orders by creation date range
             ])
             ->actions([
 
@@ -234,7 +252,7 @@ class DirectOrderResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationGroup::make('Relations', [
+            RelationGroup::make(trans('app.relations'), [
                 OffersRelationManager::class,
                 CategoriesRelationManager::class,
                 DatesRelationManager::class,
@@ -246,7 +264,8 @@ class DirectOrderResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return Order::query()->where('type', OrderType::DIRECT->value)
-            ->with(['client', 'artist', 'address.city']) // avoid N+1 on the list's name/city columns
+            // avoid N+1 on the name/city columns and the status_value accessor (reads offers + statuses)
+            ->with(['client', 'artist', 'address.city', 'offers', 'statuses'])
             ->orderByDesc('id');
     }
 

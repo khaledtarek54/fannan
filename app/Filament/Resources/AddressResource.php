@@ -43,20 +43,30 @@ class AddressResource extends Resource
                         ->label(trans('app.client'))
                         ->searchable()
                         ->required()
-                        ->options(User::client()->get()->pluck('name', 'id')),
+                        ->options(User::client()->pluck('name', 'id')), // [DASH-P3] lean pluck (no whole-table hydration)
                     Select::make('city_id')
                         ->label(trans('app.city'))
                         ->searchable()
                         ->required()
-                        ->options(City::query()->get()->pluck('name', 'id')->toArray()),
+                        ->options(City::pluck('name', 'id')->toArray()),
                     TextInput::make('name')
                         ->label(trans('app.name'))
-                        ->required(),
+                        ->required()
+                        ->maxLength(255),
+                    // latitude/longitude are `double NOT NULL` columns. Without ->numeric() a
+                    // non-numeric entry reached the DB and threw a raw 500; bound them to valid
+                    // geographic ranges so the form rejects nonsense before it ever hits SQL.
                     TextInput::make('latitude')
                         ->label(trans('app.latitude'))
+                        ->numeric()
+                        ->minValue(-90)
+                        ->maxValue(90)
                         ->required(),
                     TextInput::make('longitude')
                         ->label(trans('app.longitude'))
+                        ->numeric()
+                        ->minValue(-180)
+                        ->maxValue(180)
                         ->required(),
                     Textarea::make('description')
                         ->label(trans('app.description'))
@@ -83,11 +93,11 @@ class AddressResource extends Resource
             ->filters([
                 SelectFilter::make('user_id')
                     ->label(trans('app.client'))
-                    ->options(User::client()->get()->pluck('name', 'id'))
+                    ->options(User::client()->pluck('name', 'id'))
                     ->multiple(),
                 SelectFilter::make('city_id')
                     ->label(trans('app.city'))
-                    ->options(City::all()->pluck('name', 'id'))
+                    ->options(City::pluck('name', 'id'))
                     ->multiple(),
             ])
             ->actions([

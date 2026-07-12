@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\OrderStatus;
 use App\Enums\OrderType;
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\BiddingOrderResource\Pages;
 use App\Filament\Resources\BiddingOrderResource\RelationManagers\BiddingOrderArtistsRelationManager;
 use App\Filament\Resources\DirectOrderResource\RelationManagers\CategoriesRelationManager;
@@ -93,6 +95,7 @@ class BiddingOrderResource extends Resource
                         DateTimePicker::make('end_date')
                             ->label(trans('app.end_date'))
                             ->required()
+                            ->after('start_date') // event must end after it starts
                             ->hiddenOn(['view']),
                     ]),
             ]);
@@ -118,10 +121,30 @@ class BiddingOrderResource extends Resource
                 // not a DB column — ->searchable()/->sortable() would throw "Unknown column". Display only.
                 Tables\Columns\TextColumn::make('subcategories_text')
                     ->label(trans('app.categories')),
-
+                // [DASH-P3] status_value is a computed accessor (current status name) — display only.
+                Tables\Columns\TextColumn::make('status_value')
+                    ->label(trans('app.status'))
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => $state ? ucwords(str_replace('_', ' ', $state)) : '—'),
             ])
             ->filters([
-                //
+                // [DASH-P3] give the bidding list the filters it lacked: current status, client, date.
+                Tables\Filters\SelectFilter::make('status')
+                    ->label(trans('app.status'))
+                    // counter_offer is a DERIVED status (never persisted), so exclude it — currentStatus() can't match it.
+                    ->options(collect(OrderStatus::cases())
+                        ->reject(fn (OrderStatus $s) => $s === OrderStatus::COUNTER_OFFER)
+                        ->mapWithKeys(fn (OrderStatus $s) => [$s->value => ucfirst(str_replace('_', ' ', $s->value))])
+                        ->all())
+                    ->query(fn (Builder $query, array $data) => filled($data['value'])
+                        ? $query->currentStatus($data['value'])
+                        : $query),
+                Tables\Filters\SelectFilter::make('client_id')
+                    ->label(trans('app.client'))
+                    // scope the dropdown to clients (matches DirectOrderResource) rather than listing every user
+                    ->options(fn () => User::client()->pluck('name', 'id'))
+                    ->searchable(),
+                CreatedBetweenFilter::make(),
             ])
             ->actions([
 //                Tables\Actions\EditAction::make(),
@@ -138,7 +161,7 @@ class BiddingOrderResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationGroup::make('Relations', [
+            RelationGroup::make(trans('app.relations'), [
                 BiddingOrderArtistsRelationManager::class,
                 CategoriesRelationManager::class,
                 DatesRelationManager::class,
@@ -149,15 +172,19 @@ class BiddingOrderResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        // [DASH-P3 review] eager-load offers + statuses too: the status_value column's accessor reads
+        // $this->offers->last() and the spatie status relation, so without these it N+1s per row.
         return Order::query()->where('type', OrderType::BIDDING)
-            ->orderByDesc('id')->with(['biddingOrderArtists.artist', 'client', 'address.city']);
+            ->orderByDesc('id')->with(['biddingOrderArtists.artist', 'client', 'address.city', 'offers', 'statuses']);
     }
 
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListBiddingOrders::route('/'),
-            'create' => Pages\CreateBiddingOrder::route('/create'),
+            // [DASH-P1] No 'create' route: a hand-built bidding order came out corrupt (Order::create
+            // defaulted type='direct', so it vanished from this list and polluted direct orders, with
+            // no number/status/date rows). Bidding orders are created by clients via the app.
             'view' => Pages\ViewBiddingOrder::route('/{record}'),
             'edit' => Pages\EditBiddingOrder::route('/{record}/edit'),
         ];

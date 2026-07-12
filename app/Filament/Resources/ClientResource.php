@@ -60,7 +60,9 @@ class ClientResource extends Resource
                     ->columns(2)
                     ->schema([
                         Forms\Components\TextInput::make('name')
-                            ->required(),
+                            ->label(trans('app.name'))
+                            ->required()
+                            ->maxLength(255),
                         PhoneInput::make('phone')
                             ->required()
                             ->countryStatePath('country_code')
@@ -74,32 +76,49 @@ class ClientResource extends Resource
                                 fn($get) => new UniquePhoneNumber( $get('recordId')),
                             ]),
                         Forms\Components\TextInput::make('email')
+                            ->label(trans('app.email'))
                             ->email()
+                            ->maxLength(255)
                             ->unique(ignoreRecord: true)
                             ->required(),
+                        // Mirror UserResource: mask the password, allow reveal, enforce a minimum
+                        // length, and let an admin optionally reset it on edit. User::setPasswordAttribute()
+                        // always Hash::make()s whatever it receives, so keep an empty submit out of the
+                        // payload (filled()) — a blank field must not overwrite the existing password.
                         Forms\Components\TextInput::make('password')
-                            ->hiddenOn(['view', 'edit'])
-                            ->required(),
+                            ->label(trans('app.password'))
+                            ->password()
+                            ->revealable()
+                            ->minLength(6)
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->required(fn ($context) => $context === 'create')
+                            ->hiddenOn(['view']),
                         Forms\Components\DatePicker::make('dob')
+                            ->label(trans('app.dob'))
+                            ->native(false)
+                            ->maxDate(now()) // a birthdate can't be in the future
                             ->required(),
                         Forms\Components\Select::make('gender')
+                            ->label(trans('app.gender'))
                             ->searchable()
+                            // [DASH-P1] gender column is enum('male','female'); 'other' corrupted the row.
                             ->options([
-                                'male' => 'Male',
-                                'female' => 'Female',
-                                'other' => 'Prefer not to tell',
+                                'male' => trans('app.male'),
+                                'female' => trans('app.female'),
                             ]),
                         Select::make('city_id')
                             ->label(trans('app.city'))
                             ->searchable()
-                            ->options(City::get()->pluck('name', 'id')->toArray())
+                            ->options(City::pluck('name', 'id')->toArray())
                             ->required(),
                         Forms\Components\TextInput::make('vat_number')
+                            ->label(trans('app.vat_number'))
                             ->rules(['digits_between:1,16']),
                         Forms\Components\TextInput::make('cr_number')
+                            ->label(trans('app.cr_number'))
                             ->rules(['digits_between:1,16']),
                         FileUpload::make('profile_photo')
-                            ->label('Profile Photo')
+                            ->label(trans('app.photo'))
                             ->required()
                             ->directory("users"),
                     ])
@@ -118,10 +137,20 @@ class ClientResource extends Resource
                 PhoneColumn::make('phone')->label(trans('app.phone'))->searchable(),
                 Tables\Columns\TextColumn::make('dob')->label(trans('app.dob'))->date(),
                 Tables\Columns\TextColumn::make('gender')->label(trans('app.gender'))->searchable(),
-                Tables\Columns\TextColumn::make('city.name')->label(trans('app.city'))->searchable(),
+                Tables\Columns\TextColumn::make('cityRelation.name')->label(trans('app.city'))->searchable(),
+                // [DASH-P3] the client's order (event) volume at a glance.
+                Tables\Columns\TextColumn::make('client_orders_count')->label(trans('app.orders'))->sortable(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
+                // [DASH-P3] filter clients by gender + city (was only a Trashed filter).
+                Tables\Filters\SelectFilter::make('gender')
+                    ->label(trans('app.gender'))
+                    ->options(['male' => trans('app.male'), 'female' => trans('app.female')]),
+                Tables\Filters\SelectFilter::make('city_id')
+                    ->label(trans('app.city'))
+                    ->searchable()
+                    ->options(fn () => City::pluck('name', 'id')),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
@@ -156,7 +185,8 @@ class ClientResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return User::withTrashed()->client();
+        // [DASH-P3] load the client's order count for the list column (no N+1).
+        return User::withTrashed()->client()->withCount('clientOrders');
     }
 
     public static function getPages(): array

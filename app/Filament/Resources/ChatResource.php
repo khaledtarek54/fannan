@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Filters\CreatedBetweenFilter;
 use App\Filament\Resources\ChatResource\Pages;
 use App\Models\Chat;
 use Filament\Resources\Resource;
@@ -62,6 +63,7 @@ class ChatResource extends Resource
                     ->badge(),
                 Tables\Columns\TextColumn::make('message')
                     ->label(trans('app.message'))
+                    ->searchable() // [DASH-P3] make message content searchable for moderation
                     ->limit(60)
                     ->wrap(),
                 Tables\Columns\IconColumn::make('is_read')
@@ -76,6 +78,7 @@ class ChatResource extends Resource
             ->filters([
                 TernaryFilter::make('is_read')
                     ->label(trans('app.read')),
+                CreatedBetweenFilter::make(),
             ])
             ->actions([
                 Tables\Actions\DeleteAction::make(),

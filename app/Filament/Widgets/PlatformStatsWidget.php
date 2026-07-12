@@ -3,6 +3,9 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\TransactionType;
+use App\Filament\Resources\InvoiceResource;
+use App\Filament\Resources\SupportResource;
+use App\Filament\Resources\WithdrawTransactionResource;
 use App\Models\Order;
 use App\Models\Support;
 use App\Models\Transaction;
@@ -31,20 +34,26 @@ class PlatformStatsWidget extends BaseWidget
 
         $openSupport = Support::query()->where('is_complete', 0)->distinct('user_id')->count('user_id');
 
+        // [DASH-P3] each card links through to the list it summarizes, so the dashboard is a jumping-off
+        // point for the backlog rather than a dead end.
         return [
             Stat::make(__('app.orders'), $totalOrders)
                 ->description($paidOrders . ' ' . __('app.paid'))
                 ->icon('heroicon-o-calendar')
-                ->color('primary'),
+                ->color('primary')
+                ->url(InvoiceResource::getUrl('index')),
             Stat::make(__('app.total') . ' (' . __('app.paid') . ')', money($gmv))
                 ->icon('heroicon-o-banknotes')
-                ->color('success'),
+                ->color('success')
+                ->url(InvoiceResource::getUrl('index')),
             Stat::make(__('app.withdraw_talents'), $pendingWithdrawals)
                 ->icon('heroicon-o-banknotes')
-                ->color($pendingWithdrawals > 0 ? 'warning' : 'gray'),
+                ->color($pendingWithdrawals > 0 ? 'warning' : 'gray')
+                ->url(WithdrawTransactionResource::getUrl('index')),
             Stat::make(__('app.supports'), $openSupport)
                 ->icon('heroicon-o-lifebuoy')
-                ->color($openSupport > 0 ? 'warning' : 'gray'),
+                ->color($openSupport > 0 ? 'warning' : 'gray')
+                ->url(SupportResource::getUrl('index')),
         ];
     }
 }

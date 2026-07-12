@@ -21,16 +21,25 @@ class OrdersChartWidget extends ChartWidget
 
     protected function getData(): array
     {
+        // [DASH-P3] one grouped, range-filtered query (index-friendly on created_at) instead of six
+        // per-render count() queries with whereYear/whereMonth (which couldn't use an index).
+        // Anchor on startOfMonth() BEFORE subMonths: subtracting months from day-29..31 overflows
+        // (e.g. Jul-31 minus one month = Jul-01, not Jun), which duplicates/drops buckets. Day 1
+        // exists in every month, so this is safe.
+        $since = now()->startOfMonth()->subMonths(5);
+        $perMonth = Order::query()
+            ->where('created_at', '>=', $since)
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as ym, COUNT(*) as total")
+            ->groupBy('ym')
+            ->pluck('total', 'ym');
+
         $labels = [];
         $counts = [];
 
         for ($i = 5; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
+            $month = now()->startOfMonth()->subMonths($i);
             $labels[] = $month->format('M Y');
-            $counts[] = Order::query()
-                ->whereYear('created_at', $month->year)
-                ->whereMonth('created_at', $month->month)
-                ->count();
+            $counts[] = (int) ($perMonth[$month->format('Y-m')] ?? 0);
         }
 
         return [
