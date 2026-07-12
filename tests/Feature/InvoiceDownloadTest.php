@@ -23,8 +23,9 @@ class InvoiceDownloadTest extends TestCase
             ->get('/api/invoice/download?order_id=' . $order->id);
 
         $response->assertStatus(200);
-        // download() streams the PDF (StreamedResponse), so read the streamed body, not getContent().
-        $this->assertStringStartsWith('%PDF-', $response->streamedContent()); // a real PDF file
+        // download() now returns a plain PDF response with an explicit Content-Length (was a
+        // StreamedResponse — chunked, which broke mobile downloads). Read the buffered body.
+        $this->assertStringStartsWith('%PDF-', $response->getContent()); // a real PDF file
     }
 
     public function test_a_non_participant_cannot_download_the_invoice(): void
