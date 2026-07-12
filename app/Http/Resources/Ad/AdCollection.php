@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Http\Resources\Support;
+namespace App\Http\Resources\Ad;
 
-use App\Http\Resources\Ad\AdResource;
 use App\Http\Resources\BasePaging;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 
