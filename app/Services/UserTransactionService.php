@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
 use App\Models\UserTransaction;
 
 class UserTransactionService
@@ -51,7 +52,13 @@ class UserTransactionService
         if ($data->status === "PAID") {
             $payment->is_paid = true;
             if ($payment->order) {
-                $payment->order->update(['is_paid' => true]);
+                $order = $payment->order;
+                $order->update(['is_paid' => true]);
+                // [FIX] Advance the order status on settlement, mirroring the HyperPay path
+                // (PaymentService::webhook → updateStatus ACCEPTED). Without this an EasyKash-paid
+                // order stays at `in_payment`: hidden from the artist's order list and shown as
+                // unpaid to the client, even though is_paid=1.
+                $order->setStatus(OrderStatus::ACCEPTED->value);
             }
         }
 
