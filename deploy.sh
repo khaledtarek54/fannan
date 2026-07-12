@@ -45,17 +45,34 @@ LOCK_AFTER="$(md5sum composer.lock 2>/dev/null | awk '{print $1}')"
 # `git push production main` fallback stays a fast-forward. Never fatal if it can't.
 git -C "$BARE_DIR" fetch "$GIT_REMOTE" "$BRANCH:$BRANCH" 2>/dev/null || true
 
-# Only run composer when dependencies actually changed (keeps code-only deploys fast).
-# --ignore-platform-reqs: the 8.4 CLI is missing ext-sodium (the web SAPI has it), so a plain
-#   install would abort. We do NOT pass --no-dev — this app boots with dev deps installed
+# Composer strategy: a full `install` is expensive, so we only run it when composer.lock changes.
+# BUT the autoloader MUST be regenerated on every deploy — adding a file to composer.json
+# `autoload.files` (e.g. app/helpers.php) or a new psr-4 path changes composer.json but NOT the
+# lock, so an install-only-on-lock-change deploy shipped code that referenced a helper the compiled
+# autoloader never registered → "Call to undefined function currency_code()" → every invoice
+# download 500'd in prod (2026-07-12). So: lock changed → full install (which rebuilds the
+# autoloader); otherwise → a cheap `dump-autoload` (~1s, no network) so autoload can never go stale.
+# --ignore-platform-reqs: the 8.4 CLI is missing ext-sodium (the web SAPI has it), so composer would
+#   otherwise abort. We do NOT pass --no-dev — this app boots with dev deps installed
 #   (nunomaduro/collision is an auto-discovered provider); --no-dev would need collision moved to
 #   extra.laravel.dont-discover first, else every request 500s.
 COMPOSER_BIN="$(command -v composer || true)"
-if [ -n "$COMPOSER_BIN" ] && { [ "$LOCK_BEFORE" != "$LOCK_AFTER" ] || [ ! -f vendor/autoload.php ]; }; then
+if [ -z "$COMPOSER_BIN" ]; then
+  echo "!! composer not found — SKIPPING autoload regeneration (autoloader may be stale)"
+elif [ "$LOCK_BEFORE" != "$LOCK_AFTER" ] || [ ! -f vendor/autoload.php ]; then
   echo "==> composer.lock changed — installing dependencies"
   COMPOSER_MEMORY_LIMIT=-1 "$PHP" "$COMPOSER_BIN" install --ignore-platform-reqs --optimize-autoloader --no-interaction --prefer-dist
 else
-  echo "==> Dependencies unchanged — skipping composer install"
+  # Deps unchanged: regenerate ONLY the autoloader. --no-scripts skips composer's post-autoload-dump
+  # hooks (artisan package:discover / filament:upgrade) — they boot the framework (and re-publish
+  # Filament assets) and could fail on the ext-sodium-less 8.4 CLI; this branch just needs a fresh
+  # autoload map, which composer writes BEFORE those hooks run. Non-fatal so a composer hiccup can
+  # never strand prod between `reset --hard` and migrate/cache-clear — a stale autoloader is the
+  # lesser evil, and cache:clear/route:clear below re-derive discovery anyway.
+  echo "==> Dependencies unchanged — regenerating autoloader (composer dump-autoload, no scripts)"
+  if ! COMPOSER_MEMORY_LIMIT=-1 "$PHP" "$COMPOSER_BIN" dump-autoload --optimize --ignore-platform-reqs --no-scripts --no-interaction; then
+    echo "!! dump-autoload failed — continuing so the deploy still migrates & clears caches (autoloader may be stale)"
+  fi
 fi
 
 echo "==> Running migrations"
