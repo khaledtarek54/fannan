@@ -7,40 +7,44 @@ The Fannan backend (`apps.fannan.ai`) runs on **Hostinger shared hosting** and d
 
 ## TL;DR — how to deploy
 
-From your machine, after committing:
+Two **upload-free** steps from your machine, after committing:
 
 ```bash
-git push production main
+git push origin main                                        # 1. publish to GitHub (deploy source of truth)
+ssh -p 65002 u715768425@217.21.90.20 \
+    'bash ~/domains/apps.fannan.ai/public_html/deploy.sh'   # 2. server pulls from GitHub & rolls out
 ```
 
-That's it. The server auto-deploys itself and streams the deploy log back to your terminal.
-(You'll be asked for the SSH password unless you've added your SSH key — see setup below.)
+Step 2 streams the deploy log back to your terminal. That's it.
 
-Also mirror to the private GitHub backup:
-
-```bash
-git push origin main
-```
+> **Why not just `git push production main`?** It still works and fires the same `deploy.sh`, but
+> the push itself is a **laptop→server upload**, and this shared host's per-account connection
+> throttling makes uploads (`git push` / `scp`) **hang under load**. The two-step flow above only
+> ever runs **server→GitHub** pulls, which never hang. So GitHub is the deploy source of truth —
+> **always `git push origin main` before deploying.**
 
 ---
 
-## How it works (auto-deploy)
+## How it works (deploy = server pulls from GitHub)
 
 ```
-your machine  --git push-->  server bare repo (~/repos/fannan.git)
-                                     |
-                              post-receive hook
-                                     |
-                                 deploy.sh   (in public_html)
-                          pull → composer* → migrate → clear caches
+your machine  --git push origin main-->  GitHub (khaledtarek54/fannan)
+                                                |
+   you run deploy.sh on the server (ssh, or via `git push production main` hook)
+                                                |
+                                          deploy.sh  (in public_html)
+                     fetch GitHub → reset --hard → composer* → migrate → clear caches
 ```
 
-- The server's **`~/domains/apps.fannan.ai/public_html`** is a git checkout of the bare repo
-  **`~/repos/fannan.git`**.
-- The `production` remote points at that bare repo. Pushing to it fires a **`post-receive` hook**
-  (`~/repos/fannan.git/hooks/post-receive`) that runs **`deploy.sh`**.
-- `deploy.sh` (`public_html/deploy.sh`): `git pull` → `composer install` *only if `composer.lock`
-  changed* → `php artisan migrate --force` → clear config/cache/view → ensure storage symlink.
+- The server's **`~/domains/apps.fannan.ai/public_html`** is a git checkout; **`deploy.sh` fetches
+  `main` straight from GitHub** (`https://github.com/khaledtarek54/fannan.git`) and `git reset
+  --hard`s to it — divergence-proof, and no laptop upload required.
+- **`git push production main` still works** as an optional trigger: it pushes to the bare repo
+  **`~/repos/fannan.git`**, whose **`post-receive` hook** runs the same `deploy.sh` (which then pulls
+  from GitHub). deploy.sh also keeps the bare repo in step so that push stays a fast-forward.
+- `deploy.sh` (`public_html/deploy.sh`): `git fetch GitHub` + `reset --hard` → `composer install`
+  *only if `composer.lock` changed* → `php artisan migrate --force` → clear config/route/cache/view →
+  ensure storage symlink.
 - **`.env`, `vendor/`, `storage/`, and uploaded media are gitignored**, so a deploy never touches
   them. Migrations run automatically; no new migrations = no-op.
 
@@ -108,7 +112,8 @@ Safe to run repeatedly.
 | Symptom | Cause / fix |
 |---|---|
 | `ssh: connect ... Connection timed out` | Your IP isn't whitelisted for SSH (Hostinger), or you're on a cloud/CI IP. Deploy from a whitelisted machine. |
-| Push succeeds but code didn't change | You pushed to `origin` (GitHub) not `production`. Deploy target is `production`. |
+| `git push production main` hangs at `password:` / after auth, ref never updates | Host's connection throttling stalling the upload. Don't fight it — use the two-step flow: `git push origin main` then run `deploy.sh` on the server over SSH. |
+| Ran `deploy.sh` but code didn't change | `deploy.sh` pulls from **GitHub** — you forgot `git push origin main` first (GitHub is the deploy source of truth). |
 | 500 on every request after a deploy | Dev deps got removed (collision). Re-run `composer install` **without** `--no-dev` (see above). |
 | `composer` aborts on `ext-sodium` | Use `--ignore-platform-reqs` (the 8.4 **CLI** lacks sodium; the web SAPI has it). `deploy.sh` handles this. |
 | artisan "requires PHP >= 8.4" | You used the default `php` (8.2). Use `/opt/alt/php84/usr/bin/php`. |
@@ -118,5 +123,7 @@ Safe to run repeatedly.
 ## Why not GitHub Actions?
 
 We set it up and it can't work here: GitHub's runners can't reach the server (Hostinger firewalls
-their datacenter IPs — connection times out). The repo is on GitHub purely as an off-site backup;
-**deploys go through the `production` remote**, not GitHub.
+their datacenter IPs — connection times out), so CI can't SSH in to trigger a deploy. But the
+**server itself** can reach GitHub, which is exactly what `deploy.sh` relies on: it pulls `main`
+from GitHub. GitHub is the deploy **source of truth**; the release step is just triggering
+`deploy.sh` on the server (over SSH, or via the `git push production main` hook).
